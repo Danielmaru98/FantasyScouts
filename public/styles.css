@@ -389,13 +389,13 @@ tbody th { font-size: .95rem; font-weight: 700; }
     z-index: 3;
     inset: auto 0 0;
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: .5rem;
     padding: .42rem .85rem calc(.42rem + env(safe-area-inset-bottom));
     border-top: 1px solid var(--line);
     background: #111c19;
   }
-  .manager-view .main-nav a { justify-content: center; font-size: .89rem; }
+  .manager-view .main-nav a { justify-content: center; padding-inline: .25rem; font-size: clamp(.76rem, 3.5vw, .89rem); }
   #app:has(.manager-view) + .notice { bottom: calc(4.5rem + env(safe-area-inset-bottom)); }
 }
 @media (max-width: 360px) {

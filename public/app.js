@@ -8,7 +8,7 @@ const euro = new Intl.NumberFormat("es-ES", {
 const labels = { planned: "Programada", open: "Plantillas abiertas", scoring: "En puntuación", closed: "Cerrada" };
 const routes = { inicio: "Inicio", alineacion: "Alineación", mercado: "Mercado", clasificacion: "Clasificación", jornadas: "Semanas", monitores: "Monitores", gestion: "Gestión" };
 const organizationRoutes = ["inicio", "mercado", "clasificacion", "jornadas", "monitores", "gestion"];
-const managerRoutes = ["alineacion", "clasificacion"];
+const managerRoutes = ["alineacion", "mercado", "clasificacion"];
 const transition = {
   planned: { action: "open", label: "Abrir semana", hint: "Los mánagers podrán revisar su equipo para esta semana." },
   open: { action: "lock", label: "Fijar plantillas", hint: "Guarda la plantilla de cada equipo para esta semana y habilita el registro de puntos." },
@@ -40,6 +40,7 @@ const isAdmin = () => state.viewer?.role === "admin";
 const canReview = () => isAdmin() || Boolean(state.viewer?.reviewIds.length);
 const navigation = () => isAdmin() ? organizationRoutes : managerRoutes;
 const me = () => state.viewer?.player;
+const editingRoster = () => currentRoute === "alineacion" && lineupEditing && Boolean(me());
 const localView = () => isAdmin() ? "admin" : "player";
 const sectionName = (id) => state.sections.find((section) => section.id === id)?.name ?? "Sección";
 const monitorFor = (id) => state.monitors.find((monitor) => monitor.id === id);
@@ -388,7 +389,7 @@ function marketResults() {
   monitors.sort((a, b) => total(b.id) - total(a.id) || a.name.localeCompare(b.name, "es"));
   const roster = new Set(state.roster);
   const full = roster.size >= state.rosterSize;
-  const showActions = Boolean(me());
+  const showActions = editingRoster();
 
   return `<div class="table-wrap" tabindex="0" role="region" aria-label="Monitores del mercado">
     <table class="market-table" role="table"><thead role="rowgroup"><tr role="row">
@@ -399,7 +400,7 @@ function marketResults() {
       ${showActions ? '<th scope="col" role="columnheader" class="num">Plantilla</th>' : ""}
     </tr></thead><tbody role="rowgroup">${monitors.map(({ id, name, sectionId, marketValueCents }) => {
       const points = weekly.get(id) ?? (week?.status === "closed" ? 0 : undefined);
-      const signed = roster.has(id);
+      const signed = showActions && roster.has(id);
       const label = signed ? "Liberar" : "Fichar";
       return `<tr role="row"${signed ? ' class="active-row"' : ""}>
         <th scope="row" role="rowheader" class="market-monitor">${personLine(name, sectionName(sectionId))}</th>
@@ -432,7 +433,7 @@ function marketPanel() {
             ${state.sections.map(({ id, name }) => `<option value="${id}"${choose(id, marketSection)}>${h(name)}</option>`).join("")}
           </select>
         </div>
-        ${me() ? `<p class="market-places"><span class="pill ${full ? "" : "open"}">${state.roster.length} de ${state.rosterSize} plazas ocupadas</span>
+        ${editingRoster() ? `<p class="market-places"><span class="pill ${full ? "" : "open"}">${state.roster.length} de ${state.rosterSize} plazas ocupadas</span>
           ${full ? '<small id="market-full">Libera una plaza para fichar.</small>' : ""}</p>` : ""}
       </div><div id="market-results">${marketResults()}</div>`
       : '<p class="empty">Los monitores aparecerán aquí cuando se registren.</p>'}
@@ -440,9 +441,12 @@ function marketPanel() {
 }
 
 function marketPage() {
-  const action = state.monitors.length ? `<div class="form-actions">${refreshButton}
-    <a class="button secondary" href="#monitores" data-route>Editar valores</a></div>`
-    : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
+  let action = refreshButton;
+  if (isAdmin()) {
+    action = state.monitors.length ? `<div class="form-actions">${refreshButton}
+      <a class="button secondary" href="#monitores" data-route>Editar valores</a></div>`
+      : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
+  }
   return pageHead("Mercado", "Consulta el valor y los puntos de los monitores de todo el grupo.", action) + marketPanel();
 }
 

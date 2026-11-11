@@ -16,7 +16,7 @@ La liga se guarda en el navegador desde el que abres el archivo. **Gestión → 
 
 En **Monitores**, puedes descargar el registro por separado. **Importar registro** añade los monitores que falten a partir de ese archivo o de una copia completa de FantasyScout.
 
-El **Mercado** muestra el valor en euros de cada monitor. Los monitores parten de 1.000 € y Organización puede asignar otro importe al registrarlos o pulsar **Editar valor** en el registro. Las copias locales incluyen los valores.
+En **Vista usuario**, **Mercado** permite consultar monitores, sus valores en euros y sus puntos. Los monitores parten de 1.000 € y Organización puede asignar otro importe al registrarlos o pulsar **Editar valor** en el registro. Las copias locales incluyen los valores.
 
 Puedes importar una copia del HTML anterior. Los participantes de aquella liga pasan también al registro de monitores, los fichajes elegidos forman la plantilla histórica y los puntos individuales se conservan.
 
@@ -54,7 +54,7 @@ Para que el grupo acceda desde sus dispositivos, ejecuta la aplicación en un se
 ## Organizar la liga
 
 1. En **Gestión → Secciones**, añade las secciones del grupo. Tropa Jungla viene dada de alta. Registra los monitores por separado en **Monitores**.
-2. Cada mánager ve **Alineación** y **Clasificación**. En el campo puede consultar su plantilla actual o la que se fijó para una semana. En **Editar plantilla** puede buscar monitores por nombre o sección, consultar su valor y sus puntos, ficharlos o liberar plazas. El límite empieza en cinco monitores y se ajusta desde **Gestión → Equipos**.
+2. Cada mánager ve **Alineación**, **Mercado** y **Clasificación**. En el campo puede consultar su plantilla actual o la que se fijó para una semana. En **Editar plantilla** puede buscar monitores por nombre o sección, consultar su valor y sus puntos, ficharlos o liberar plazas. El límite empieza en cinco monitores y se ajusta desde **Gestión → Equipos**.
 3. En **Gestión → Semanas**, abre la semana y pulsa **Fijar plantillas** al empezar. Los cambios posteriores en el equipo se aplican a las siguientes semanas. Puedes añadir semanas al calendario.
 4. En **Puntuaciones**, marca las aportaciones de cada monitor. La organización puede asignar un responsable de puntuación por sección. Pulsa **Cerrar semana** al terminar la revisión.
 

@@ -207,12 +207,16 @@ test("index.html crea un equipo en la primera visita y pide la clave para organi
   const listeners = new Map();
   const mount = { innerHTML: "", addEventListener: (name, callback) => listeners.set(name, callback) };
   const notice = { classList: { toggle() {} } };
-  const browser = { localStorage: memoryStorage(), addEventListener() {} };
+  const browser = {
+    localStorage: memoryStorage(),
+    addEventListener: (name, callback) => listeners.set(name, callback),
+    scrollTo() {},
+  };
   const location = { protocol: "file:", hash: "" };
   const testScript = script.replace(/(const LOCAL_ORGANIZER_HASH = ")[a-f0-9]{64}/, (_, declaration) => declaration + organizerHash);
   assert.notEqual(testScript, script);
   vm.runInNewContext(testScript, {
-    document: { querySelector: (selector) => selector === "#app" ? mount : notice, getElementById: () => null },
+    document: { querySelector: (selector) => ({ "#app": mount, "#notice": notice })[selector] ?? null, getElementById: () => null },
     window: browser,
     navigator: {},
     crypto: webcrypto,
@@ -259,26 +263,40 @@ test("index.html crea un equipo en la primera visita y pide la clave para organi
   assert.equal(location.hash, "#inicio");
   assert.equal((await getState(browser.fantasyScoutLocal)).viewer.role, "admin");
 
-  location.hash = "#monitores";
+  const navigate = (route) => {
+    location.hash = `#${route}`;
+    listeners.get("hashchange")();
+  };
+  navigate("monitores");
   await submit("add-monitor", { name: "Junco", sectionId: "1", marketValue: "1.250,75" });
   assert.match(mount.innerHTML, /<th scope="row">Junco<\/th>/);
   assert.match(mount.innerHTML, /1\.250,75\s€/);
   assert.match(mount.innerHTML, /<option value="1" selected>Tropa Jungla<\/option>/);
   assert.equal(notice.textContent, "Monitor registrado.");
+  navigate("mercado");
+  assert.match(mount.innerHTML, /Editar valores/);
 
   await switchView("player");
   assert.equal(location.hash, "#alineacion");
   const navigation = mount.innerHTML.match(/<nav [^>]*>([\s\S]+?)<\/nav>/)?.[1];
   assert.ok(navigation);
-  assert.deepEqual(Array.from(navigation.matchAll(/href="#([^"]+)"/g), ([, route]) => route), ["alineacion", "clasificacion"]);
+  assert.deepEqual(Array.from(navigation.matchAll(/href="#([^"]+)"/g), ([, route]) => route), ["alineacion", "mercado", "clasificacion"]);
   assert.match(mount.innerHTML, /Alineación en el campo/);
+  navigate("mercado");
+  assert.match(mount.innerHTML, /<h1>Mercado<\/h1>/);
+  assert.match(mount.innerHTML, /1\.250,75\s€/);
+  assert.doesNotMatch(mount.innerHTML, /Editar valores|Registrar monitores|data-form="market-transfer"/);
+  await assert.rejects(setValue(browser.fantasyScoutLocal, 1, 350_000), { status: 403 });
 
+  navigate("alineacion");
   const editLineup = { dataset: { command: "edit-lineup" }, hasAttribute: () => false };
   await listeners.get("click")({ target: { closest: () => editLineup } });
   assert.match(mount.innerHTML, /Fichar a Junco/);
   await submit("market-transfer", {}, { id: "1", move: "sign" });
   assert.equal(notice.textContent, "Monitor fichado.");
-  await listeners.get("click")({ target: { closest: () => editLineup } });
+  navigate("mercado");
+  assert.doesNotMatch(mount.innerHTML, /data-form="market-transfer"/);
+  navigate("alineacion");
   assert.match(mount.innerHTML, /class="pitch-name" title="Junco">Junco/);
   await assert.rejects(add(browser.fantasyScoutLocal, "Sur", "Faroles", 1), { status: 403 });
   assert.equal(fetched, false);
