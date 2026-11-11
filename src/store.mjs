@@ -3,7 +3,7 @@ import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
   convertLegacyGame, DEFAULT_ROSTER_SIZE, leagueView, MAX_ROSTER_SIZE,
-  nextRoundStatus, rosterProblem, STARTER_CHALLENGES, validRosterSize,
+  nextRoundStatus, rosterAfterTransfer, rosterProblem, STARTER_CHALLENGES, validRosterSize,
 } from "./league.mjs";
 
 export class RequestError extends Error {
@@ -286,6 +286,25 @@ export class LeagueStore {
       this.db.prepare("DELETE FROM team_roster_members WHERE player_id = ?").run(playerId);
       const add = this.db.prepare("INSERT INTO team_roster_members (player_id, monitor_id) VALUES (?, ?)");
       for (const monitorId of monitorIds) add.run(playerId, monitorId);
+    });
+  }
+
+  transferMonitor(playerId, monitorId, action) {
+    this.transaction(() => {
+      if (!this.player(playerId)) throw new RequestError(401, "Vuelve a iniciar sesión.");
+      const currentIds = this.db.prepare("SELECT monitor_id AS id FROM team_roster_members WHERE player_id = ?")
+        .all(playerId).map(({ id }) => id);
+      const monitors = this.db.prepare("SELECT id FROM monitors").all();
+      const { problem } = rosterAfterTransfer(currentIds, monitors, this.rosterSize(), monitorId, action);
+      if (problem) throw new RequestError(400, problem);
+      if (action === "sign") {
+        this.db.prepare(`
+          INSERT INTO team_roster_members (player_id, monitor_id) VALUES (?, ?)
+          ON CONFLICT (player_id, monitor_id) DO NOTHING
+        `).run(playerId, monitorId);
+      } else {
+        this.db.prepare("DELETE FROM team_roster_members WHERE player_id = ? AND monitor_id = ?").run(playerId, monitorId);
+      }
     });
   }
 

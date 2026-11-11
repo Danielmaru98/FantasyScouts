@@ -1,6 +1,6 @@
 import {
   contributionMask, CONTRIBUTIONS, convertLegacyGame, DEFAULT_ROSTER_SIZE, leagueView, MAX_ROSTER_SIZE,
-  nextRoundStatus, rosterProblem, STARTER_CHALLENGES, validRosterSize,
+  nextRoundStatus, rosterAfterTransfer, rosterProblem, STARTER_CHALLENGES, validRosterSize,
 } from "./league.mjs";
 
 const LOCAL_KEY = "fantasyscout-108-local-v1";
@@ -296,11 +296,14 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
       }
     }
 
-    if (route[0] === "roster" && method === "PUT") {
+    if (route[0] === "roster" && ["PUT", "PATCH"].includes(method)) {
       if (!actor) throw localError("Selecciona la vista de un mánager para guardar su plantilla.", 403);
-      const problem = rosterProblem(body.monitorIds, draft.monitors, draft.rosterSize);
+      const currentIds = draft.rosters.find(({ playerId }) => playerId === actor.id)?.monitorIds ?? [];
+      const { monitorIds, problem } = method === "PATCH"
+        ? rosterAfterTransfer(currentIds, draft.monitors, draft.rosterSize, body.monitorId, body.action)
+        : { monitorIds: body.monitorIds, problem: rosterProblem(body.monitorIds, draft.monitors, draft.rosterSize) };
       if (problem) throw localError(problem);
-      saveLocalEntry(draft.rosters, { playerId: actor.id, monitorIds: [...body.monitorIds] }, ({ playerId }) => playerId);
+      saveLocalEntry(draft.rosters, { playerId: actor.id, monitorIds: [...monitorIds] }, ({ playerId }) => playerId);
       return;
     }
 

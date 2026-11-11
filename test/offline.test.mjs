@@ -20,6 +20,7 @@ const monitor = (league, name, sectionId) => league.request("/api/admin/monitors
 const phase = (league, action, round = 1) => league.request(`/api/admin/rounds/${round}`, "PATCH", { action });
 const score = (league, id, categories, round = 1) => league.request(`/api/rounds/${round}/scores/${id}`, "PUT", { categories });
 const roster = (league, monitorIds) => league.request("/api/roster", "PUT", { monitorIds });
+const transfer = (league, monitorId, action) => league.request("/api/roster", "PATCH", { monitorId, action });
 
 test("la liga local congela la plantilla de cada semana y aplica los cambios a la siguiente", async () => {
   const storage = memoryStorage();
@@ -31,15 +32,21 @@ test("la liga local congela la plantilla de cada semana y aplica los cambios a l
   await monitor(league, "Río", 2);
   await monitor(league, "Pino", 1);
   await assert.rejects(add(league, "norte", "Otro equipo", 2), /alias ya/);
+  await league.request("/api/admin/settings", "PATCH", { rosterSize: 2 });
+  await assert.rejects(transfer(league, 2, "sign"), /vista de un mánager/);
 
   league.viewAs(1);
   await assert.rejects(roster(league, [2, 2]), /una plaza/);
-  await roster(league, [2, 3]);
+  await roster(league, [2]);
+  await transfer(league, 3, "sign");
+  await transfer(league, 3, "sign");
+  await assert.rejects(transfer(league, 1, "sign"), /hasta 2/);
+  assert.deepEqual((await getState(league)).roster, [2, 3]);
   league.viewAs(null);
   await phase(league, "open");
   await phase(league, "lock");
   league.viewAs(1);
-  await roster(league, [3]);
+  await transfer(league, 2, "release");
   await assert.rejects(score(league, 2, ["task"]), /sección/);
   league.viewAs(null);
   await score(league, 1, ["task", "help", "help"]);

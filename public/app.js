@@ -3,7 +3,7 @@ const notice = document.querySelector("#notice");
 const localLeague = window.fantasyScoutLocal ?? null;
 const dates = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Madrid" });
 const labels = { planned: "Programada", open: "Plantillas abiertas", scoring: "En puntuación", closed: "Cerrada" };
-const routes = { inicio: "Inicio", alineacion: "Mi equipo", clasificacion: "Clasificación", jornadas: "Semanas", monitores: "Monitores", gestion: "Gestión" };
+const routes = { inicio: "Inicio", alineacion: "Mi equipo", mercado: "Mercado", clasificacion: "Clasificación", jornadas: "Semanas", monitores: "Monitores", gestion: "Gestión" };
 const transition = {
   planned: { action: "open", label: "Abrir semana", hint: "Los mánagers podrán revisar su equipo para esta semana." },
   open: { action: "lock", label: "Fijar plantillas", hint: "Guarda la plantilla de cada equipo para esta semana y habilita el registro de puntos." },
@@ -24,6 +24,8 @@ let setupRound;
 let reviewRound;
 let reviewSection = 0;
 let reviewMonitor;
+let marketQuery = "";
+let marketSection = 0;
 let saving = false;
 let noticeTimer;
 let currentRoute = "inicio";
@@ -276,6 +278,80 @@ function lineupPage() {
     </div>`;
 }
 
+function searchName(value) {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("es");
+}
+
+function marketResults() {
+  const query = searchName(marketQuery.trim());
+  const monitors = state.monitors.filter(({ name, sectionId }) =>
+    (!marketSection || sectionId === marketSection) && searchName(name).includes(query));
+  if (!monitors.length) return '<p class="empty" role="status">Ningún monitor coincide con la búsqueda.</p>';
+
+  const scoredWeeks = new Set(state.monitorPoints.map(({ roundId }) => roundId));
+  const week = state.rounds.findLast(({ id }) => scoredWeeks.has(id));
+  const weekly = new Map();
+  const totals = new Map();
+  for (const { roundId, monitorId, points } of state.monitorPoints) {
+    if (roundId === week?.id) weekly.set(monitorId, points);
+    totals.set(monitorId, (totals.get(monitorId) ?? 0) + points);
+  }
+  const total = (id) => totals.get(id) ?? 0;
+  monitors.sort((a, b) => total(b.id) - total(a.id) || a.name.localeCompare(b.name, "es"));
+  const roster = new Set(state.roster);
+  const full = roster.size >= state.rosterSize;
+  const showActions = Boolean(me());
+
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="Monitores del mercado">
+    <table class="market-table"><thead><tr><th scope="col">Monitor</th>
+      <th scope="col" class="num">${week ? `Semana ${week.id}` : "Última semana"}</th>
+      <th scope="col" class="num">Total</th>${showActions ? '<th scope="col" class="num">Plantilla</th>' : ""}
+    </tr></thead><tbody>${monitors.map(({ id, name, sectionId }) => {
+      const points = weekly.get(id) ?? (week?.status === "closed" ? 0 : undefined);
+      const signed = roster.has(id);
+      const label = signed ? "Liberar" : "Fichar";
+      return `<tr${signed ? ' class="active-row"' : ""}>
+        <th scope="row">${personLine(name, sectionName(sectionId))}</th>
+        <td class="num">${points === undefined ? "—" : `${points} pt`}</td>
+        <td class="num points">${total(id)} pt</td>
+        ${showActions ? `<td class="market-action">
+          <form data-form="market-transfer" data-id="${id}" data-move="${signed ? "release" : "sign"}">
+            <button id="market-action-${id}" class="button ${signed ? "secondary" : "primary"}" type="submit"
+              aria-label="${label} a ${h(name)}"${!signed && full ? ' disabled aria-describedby="market-full"' : ""}>${label}</button>
+            ${errorRegion}
+          </form>
+        </td>` : ""}
+      </tr>`;
+    }).join("")}</tbody></table></div>`;
+}
+
+function marketPage() {
+  const manager = me();
+  const full = state.roster.length >= state.rosterSize;
+  const description = manager ? "Consulta los puntos y ficha monitores de cualquier sección."
+    : localLeague ? "Elige un mánager en Vista local para hacer fichajes." : "Consulta los puntos de los monitores de todo el grupo.";
+  const action = manager ? '<a class="button secondary" href="#alineacion" data-route>Ver mi equipo</a>'
+    : state.monitors.length ? refreshButton : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
+  if (!state.sections.some(({ id }) => id === marketSection)) marketSection = 0;
+  return `${pageHead("Mercado", description, action)}
+    <section class="card table-card" aria-label="Mercado de monitores">
+      ${state.monitors.length ? `<div class="market-controls">
+        <div class="field"><label for="market-search">Buscar monitor</label>
+          <input id="market-search" type="search" value="${h(marketQuery)}" autocomplete="off">
+        </div>
+        <div class="field"><label for="market-section">Sección</label>
+          <select id="market-section" data-select="market-section">
+            <option value="0">Todas las secciones</option>
+            ${state.sections.map(({ id, name }) => `<option value="${id}"${choose(id, marketSection)}>${h(name)}</option>`).join("")}
+          </select>
+        </div>
+        ${manager ? `<p class="market-places"><span class="pill ${full ? "" : "open"}">${state.roster.length} de ${state.rosterSize} plazas ocupadas</span>
+          ${full ? '<small id="market-full">Libera una plaza para fichar.</small>' : ""}</p>` : ""}
+      </div><div id="market-results">${marketResults()}</div>`
+      : '<p class="empty">Los monitores aparecerán aquí cuando se registren.</p>'}
+    </section>`;
+}
+
 function standingsPage() {
   return `${pageHead("Clasificación", "Cada semana suma los puntos de los monitores de la plantilla. En empate, los equipos comparten puesto.", refreshButton)}
     <section class="card table-card">${state.standings.length ? `<div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de clasificación">
@@ -520,7 +596,7 @@ function render() {
     currentRoute = "inicio";
   }
   const pages = {
-    inicio: home, alineacion: lineupPage, clasificacion: standingsPage, jornadas: roundsPage,
+    inicio: home, alineacion: lineupPage, mercado: marketPage, clasificacion: standingsPage, jornadas: roundsPage,
     monitores: monitorRegisterPage, gestion: managementPage,
   };
   const storageWarning = state.storageWarning ? `<p class="local-warning" role="status">${h(state.storageWarning)}</p>` : "";
@@ -537,13 +613,17 @@ async function start() {
   }
 }
 
-function resetRoute() {
-  currentRoute = "inicio";
+function resetRoute(route = "inicio") {
+  currentRoute = route;
   authMode = "login";
   manageTab = "rounds";
   lineupRound = setupRound = reviewRound = reviewMonitor = undefined;
   reviewSection = 0;
-  history.replaceState(null, "", "#inicio");
+  if (route !== "mercado") {
+    marketQuery = "";
+    marketSection = 0;
+  }
+  history.replaceState(null, "", `#${route}`);
 }
 
 const actions = {
@@ -551,6 +631,8 @@ const actions = {
   "admin-login": ({ password }) => ["/api/login", "POST", { role: "admin", password }],
   register: (values) => ["/api/register", "POST", { ...values, sectionId: Number(values.sectionId) }, "Equipo inscrito."],
   roster: (_, form, data) => ["/api/roster", "PUT", { monitorIds: data.getAll("monitor").map(Number) }, "Plantilla guardada."],
+  "market-transfer": (_, { dataset }) => ["/api/roster", "PATCH",
+    { monitorId: Number(dataset.id), action: dataset.move }, dataset.move === "sign" ? "Monitor fichado." : "Plaza liberada."],
   round: (values, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", values, "Calendario guardado."],
   "add-round": (values) => ["/api/admin/rounds", "POST", values, "Semana añadida."],
   phase: (_, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", { action: form.dataset.action }, "Fase actualizada."],
@@ -604,14 +686,20 @@ async function saveForm(form, button) {
     if (formName === "add-monitor" && currentRoute === "monitores") {
       document.getElementById("monitor-name")?.focus({ preventScroll: true });
     }
+    if (formName === "market-transfer" && currentRoute === "mercado") {
+      const next = document.getElementById(`market-action-${form.dataset.id}`);
+      (next?.disabled ? document.getElementById("market-search") : next)?.focus({ preventScroll: true });
+    }
     if (message) alertUser(message);
   } catch (error) {
     if (error.status === 401 && state.viewer) {
       await start();
       alertUser(error.message, true);
-    } else {
+    } else if (form.isConnected) {
       errorBox.textContent = error.message;
       errorBox.hidden = false;
+    } else {
+      alertUser(error.message, true);
     }
   } finally {
     saving = button.disabled = false;
@@ -636,6 +724,12 @@ app.addEventListener("keydown", (event) => {
   button.click();
 });
 
+app.addEventListener("input", (event) => {
+  if (event.target.id !== "market-search") return;
+  marketQuery = event.target.value;
+  document.getElementById("market-results").innerHTML = marketResults();
+});
+
 app.addEventListener("change", async (event) => {
   const control = event.target;
   if (control.dataset.select === "local-view" && localLeague) {
@@ -647,7 +741,7 @@ app.addEventListener("change", async (event) => {
     try {
       localLeague.viewAs(control.value ? Number(control.value) : null);
       await reload();
-      resetRoute();
+      resetRoute(currentRoute === "mercado" ? "mercado" : "inicio");
       render();
       document.getElementById("local-view")?.focus({ preventScroll: true });
     } catch (error) {
@@ -670,6 +764,10 @@ app.addEventListener("change", async (event) => {
   }
   const value = Number(control.value);
   switch (control.dataset.select) {
+    case "market-section":
+      marketSection = value;
+      document.getElementById("market-results").innerHTML = marketResults();
+      return;
     case "lineup-round": lineupRound = value; break;
     case "setup-round": setupRound = value; break;
     case "review-round": reviewRound = value; break;

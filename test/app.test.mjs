@@ -62,6 +62,7 @@ test("los equipos comparten monitores y el servidor conserva las plantillas sema
   const other = client();
   const adminRound = "/api/admin/rounds/1";
   const roster = (request, monitorIds) => request("/api/roster", "PUT", { monitorIds });
+  const transfer = (request, monitorId, action) => request("/api/roster", "PATCH", { monitorId, action });
   const score = (id) => `/api/rounds/1/scores/${id}`;
   const monitor = (name, sectionId) => admin("/api/admin/monitors", "POST", { name, sectionId });
   const adminLogin = { role: "admin", password: options.adminPassword };
@@ -95,17 +96,26 @@ test("los equipos comparten monitores y el servidor conserva las plantillas sema
   assert.equal((await manager(adminRound, "PATCH", { action: "open" })).status, 403);
   assert.equal((await roster(manager, [999])).status, 400);
   assert.equal((await roster(manager, [chosen[0], chosen[0]])).status, 400);
-  assert.equal((await roster(manager, chosen)).status, 200);
-  assert.equal((await roster(manager, chosen)).status, 200);
+  assert.equal((await transfer(guest, chosen[0], "sign")).status, 401);
+  assert.equal((await transfer(admin, chosen[0], "sign")).status, 403);
+  assert.equal((await transfer(manager, 999, "sign")).status, 400);
+  assert.equal((await transfer(manager, chosen[0], "swap")).status, 400);
+  const signed = await Promise.all(chosen.map((id) => transfer(manager, id, "sign")));
+  assert.deepEqual(signed.map(({ status }) => status), [200, 200]);
+  assert.equal((await transfer(manager, chosen[0], "sign")).status, 200);
+  assert.deepEqual((await manager("/api/state")).body.roster, chosen);
   assert.equal((await roster(other, [chosen[0]])).status, 200);
   assert.equal((await admin("/api/admin/settings", "PATCH", { rosterSize: 1 })).status, 409);
   assert.equal((await admin("/api/admin/settings", "PATCH", { rosterSize: 2 })).status, 200);
+  assert.equal((await transfer(manager, monitorId("Dani"), "sign")).status, 400);
   assert.equal((await admin(adminRound, "PATCH", { action: "open" })).status, 200);
   assert.equal((await admin("/api/admin/sections/1", "PATCH", { reviewerId: playerId("Alba") })).status, 400);
   assert.equal((await admin("/api/admin/sections/2", "PATCH", { reviewerId: playerId("Alba") })).status, 200);
   assert.equal((await admin(score(monitorId("Dani")), "PUT", { categories: ["task"] })).status, 409);
   assert.equal((await admin(adminRound, "PATCH", { action: "lock" })).status, 200);
-  assert.equal((await roster(manager, [monitorId("Dani")])).status, 200);
+  for (const id of chosen) assert.equal((await transfer(manager, id, "release")).status, 200);
+  assert.equal((await transfer(manager, chosen[0], "release")).status, 200);
+  assert.equal((await transfer(manager, monitorId("Dani"), "sign")).status, 200);
   // Repetir la petición de inicio después de cambiar el equipo conserva la primera captura.
   assert.equal((await admin(adminRound, "PATCH", { action: "lock" })).status, 200);
   assert.equal((await reviewer(score(monitorId("Dani")), "PUT", { categories: ["task"] })).status, 403);
@@ -141,6 +151,7 @@ test("los equipos comparten monitores y el servidor conserva las plantillas sema
   assert.equal(reloaded.rounds.at(-1).id, 5);
   assert.equal(reloaded.rosterSize, 2);
   assert.equal(reloaded.standings[0].total, 6);
+  assert.deepEqual(reloaded.roster, [monitorId("Dani")]);
   assert.deepEqual(reloaded.weeklyRosters[0].monitorIds, chosen);
   assert.equal((await manager("/api/logout", "POST", {})).status, 200);
   assert.equal((await manager("/api/state")).body.viewer, null);

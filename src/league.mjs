@@ -46,6 +46,15 @@ export function rosterProblem(monitorIds, monitors, size) {
   return null;
 }
 
+export function rosterAfterTransfer(currentIds, monitors, size, monitorId, action) {
+  if (action !== "sign" && action !== "release") return { problem: "Elige fichar o liberar al monitor." };
+  if (!monitors.some(({ id }) => id === monitorId)) return { problem: "El monitor no está registrado en la liga." };
+  const monitorIds = action === "sign"
+    ? [...new Set([...currentIds, monitorId])]
+    : currentIds.filter((id) => id !== monitorId);
+  return { monitorIds, problem: rosterProblem(monitorIds, monitors, size) };
+}
+
 const TRANSITIONS = {
   open: { from: "planned", to: "open" },
   lock: { from: "open", to: "scoring" },

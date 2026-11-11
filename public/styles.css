@@ -171,6 +171,14 @@ td.num, th.num { text-align: right; white-space: nowrap; }
 tbody .active-row { background: #f3f7ee; }
 tbody th { font-size: .95rem; font-weight: 700; }
 .table-card .empty { padding: 1rem 1.5rem; }
+.market-controls { display: flex; align-items: end; flex-wrap: wrap; gap: .75rem 1rem; padding: 1rem; }
+.market-controls .field { flex: 1 1 10rem; max-width: 23rem; }
+.market-places { display: grid; gap: .2rem; margin-left: auto; }
+.market-places small { font-size: .8rem; color: var(--muted); }
+.market-table thead th:first-child { width: 55%; }
+.market-action { text-align: right; }
+.market-action .button { min-height: 2.35rem; padding: .36rem .75rem; font-size: .85rem; }
+.market-action .form-error { margin-top: .4rem; text-align: left; white-space: normal; }
 
 .rules-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
 .rule-list li { padding: .65rem 0; border-top: 1px solid #e8efe7; display: grid; grid-template-columns: 1fr auto; gap: .22rem .5rem; align-items: start; }
@@ -210,6 +218,8 @@ tbody th { font-size: .95rem; font-weight: 700; }
   .main-nav a { padding: .4rem .49rem; font-size: .82rem; }
   .person-slot { white-space: normal; text-align: right; }
   th, td { padding: .65rem .55rem; }
+  .market-controls .field { max-width: none; }
+  .market-places { margin-left: 0; }
 }
 @media (max-width: 360px) {
   .form-columns { grid-template-columns: 1fr; }

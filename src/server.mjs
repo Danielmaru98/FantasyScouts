@@ -215,6 +215,12 @@ export function createApp({ databasePath, adminPassword, inviteCode, secureCooki
       return replyJson(res, 200, { ok: true });
     }
 
+    if (method === "PATCH" && path === "/api/roster") {
+      requireActor(actor, "player");
+      store.transferMonitor(actor.playerId, positiveId(body.monitorId), body.action);
+      return replyJson(res, 200, { ok: true });
+    }
+
     const score = /^\/api\/rounds\/(\d+)\/scores\/(\d+)$/.exec(path);
     if (method === "PUT" && score) {
       requireActor(actor);
