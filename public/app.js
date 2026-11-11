@@ -22,7 +22,7 @@ const errorRegion = '<p class="form-error" data-error role="alert" hidden></p>';
 const refreshButton = '<button class="button secondary" type="button" data-command="refresh">Actualizar</button>';
 
 let state;
-let authMode = "login";
+let authMode = "register";
 let manageTab = "rounds";
 let lineupRound = 0;
 let lineupEditing = false;
@@ -40,7 +40,7 @@ const isAdmin = () => state.viewer?.role === "admin";
 const canReview = () => isAdmin() || Boolean(state.viewer?.reviewIds.length);
 const navigation = () => isAdmin() ? organizationRoutes : managerRoutes;
 const me = () => state.viewer?.player;
-const localView = () => isAdmin() ? "" : me()?.id ?? "preview";
+const localView = () => isAdmin() ? "admin" : "player";
 const sectionName = (id) => state.sections.find((section) => section.id === id)?.name ?? "Sección";
 const monitorFor = (id) => state.monitors.find((monitor) => monitor.id === id);
 const myStanding = () => state.standings.find((entry) => entry.id === me()?.id);
@@ -119,13 +119,7 @@ function brand(link = true) {
   </${tag}>`;
 }
 
-function authScreen() {
-  const joining = authMode === "register";
-  const organizing = authMode === "admin";
-  const title = joining ? "Inscribirme en la liga" : organizing ? "Acceso de organización" : "Entra en tu equipo";
-  const intro = joining ? "Usa el código que comparta la organización del grupo."
-    : organizing ? "Gestiona monitores, semanas y puntuaciones." : "Accede con el alias que elegiste al inscribirte.";
-  const formName = joining ? "register" : organizing ? "admin-login" : "login";
+function authShell(content) {
   return `<main class="auth-shell" id="main" tabindex="-1">
     <section class="auth-story">
       ${brand(false)}
@@ -137,15 +131,73 @@ function authScreen() {
     </section>
     <section class="auth-panel">
       <div class="auth-box">
-        <h2>${title}</h2><p class="muted">${intro}</p>
+        ${state.storageWarning ? `<p class="local-warning" role="status">${h(state.storageWarning)}</p>` : ""}
+        ${content}
+      </div>
+    </section>
+  </main>`;
+}
+
+const aliasField = '<div class="field"><label for="alias">Alias</label><input id="alias" name="alias" autocomplete="username" maxlength="32" required></div>';
+
+function teamFields(selectedSection) {
+  return `<div class="field"><label for="team">Nombre de tu equipo</label><input id="team" name="team" maxlength="52" required></div>
+    <div class="field"><label for="join-section">Sección del mánager</label>
+      <select id="join-section" name="sectionId" required>${sectionOptions(selectedSection)}</select>
+    </div>`;
+}
+
+function localEntry() {
+  if (authMode === "admin") {
+    return `<h2>Acceso de organización</h2>
+      <form class="form" data-form="admin-login">
+        <div class="field"><label for="password">Contraseña de Organización</label>
+          <input id="password" name="password" type="password" inputmode="numeric" autocomplete="current-password" maxlength="11" required>
+        </div>
+        ${errorRegion}<button class="button primary" type="submit">Entrar en Organización</button>
+      </form>
+      <p class="auth-link"><button type="button" class="link-button" data-auth="register">Volver a Vista usuario</button></p>`;
+  }
+  if (authMode === "existing" && state.players.length) {
+    return `<h2>Elige tu equipo guardado</h2>
+      <form class="form" data-form="local-team">
+        <div class="field"><label for="saved-team">Equipo</label>
+          <select id="saved-team" name="playerId" required><option value="">Elige tu equipo</option>
+            ${state.players.map(({ id, alias, team }) => `<option value="${id}">${h(team)} · ${h(alias)}</option>`).join("")}
+          </select>
+        </div>
+        ${errorRegion}<button class="button primary" type="submit">Entrar en mi equipo</button>
+      </form>
+      <p class="auth-link"><button type="button" class="link-button" data-auth="register">Volver a crear equipo</button></p>`;
+  }
+  const section = state.sections.length === 1 ? state.sections[0].id : undefined;
+  return `<h2>Crea tu equipo</h2><p class="muted">Tu equipo se guarda en este navegador.</p>
+    <form class="form" data-form="register">
+      ${aliasField}${teamFields(section)}
+      ${errorRegion}<button class="button primary" type="submit">Crear mi equipo</button>
+    </form>
+    <p class="auth-link form-actions">
+      ${state.players.length ? '<button type="button" class="link-button" data-auth="existing">Usar un equipo guardado</button>' : ""}
+      <button type="button" class="link-button" data-auth="admin">Acceso de organización</button>
+    </p>`;
+}
+
+function authScreen() {
+  if (localLeague) return authShell(localEntry());
+  const joining = authMode === "register";
+  const organizing = authMode === "admin";
+  const title = joining ? "Inscribirme en la liga" : organizing ? "Acceso de organización" : "Entra en tu equipo";
+  const intro = joining ? "Usa el código que comparta la organización del grupo."
+    : organizing ? "Gestiona monitores, semanas y puntuaciones." : "Accede con el alias que elegiste al inscribirte.";
+  const formName = joining ? "register" : organizing ? "admin-login" : "login";
+  return authShell(`<h2>${title}</h2><p class="muted">${intro}</p>
         ${organizing ? "" : `<div class="auth-switch" aria-label="Acceso a la liga">
           <button type="button" data-auth="login" aria-pressed="${!joining}">Entrar</button>
           <button type="button" data-auth="register" aria-pressed="${joining}">Inscribirme</button>
         </div>`}
         <form class="form" data-form="${formName}">
-          ${organizing ? "" : `<div class="field"><label for="alias">Alias</label><input id="alias" name="alias" autocomplete="username" maxlength="32" required></div>`}
-          ${joining ? `<div class="field"><label for="team">Nombre de tu equipo</label><input id="team" name="team" maxlength="52" required></div>
-          <div class="field"><label for="join-section">Sección del mánager</label><select id="join-section" name="sectionId" required>${sectionOptions()}</select></div>` : ""}
+          ${organizing ? "" : aliasField}
+          ${joining ? teamFields() : ""}
           <div class="field"><label for="password">${organizing ? "Clave de organización" : "Contraseña"}</label>
             <input id="password" name="password" type="password" autocomplete="${joining ? "new-password" : "current-password"}" minlength="${organizing ? 12 : 8}" maxlength="128" required>
           </div>
@@ -155,9 +207,7 @@ function authScreen() {
         </form>
         <p class="auth-link"><button type="button" class="link-button" data-auth="${organizing ? "login" : "admin"}">
           ${organizing ? "Volver al acceso de mánagers" : "Acceso de organización"}</button></p>
-      </div>
-    </section>
-  </main>`;
+    `);
 }
 
 function roundStatus(round) {
@@ -173,11 +223,8 @@ function topBar() {
   const account = localLeague ? `<div class="local-account">
     <label for="local-view">Vista local</label>
     <select id="local-view" data-select="local-view">
-      <option value=""${choose("", selectedView)}>Organización</option>
-      <option value="preview"${choose("preview", selectedView)}>Vista usuario</option>
-      ${state.players.length ? `<optgroup label="Mánagers inscritos">
-        ${state.players.map(({ id, alias }) => `<option value="${id}"${choose(id, selectedView)}>${h(alias)}</option>`).join("")}
-      </optgroup>` : ""}
+      <option value="player"${choose("player", selectedView)}>Vista usuario</option>
+      <option value="admin"${choose("admin", selectedView)}>Organización</option>
     </select>
   </div>` : `<div class="account"><span>${isAdmin() ? "Organización" : h(me().alias)}</span>
     <button type="button" class="button secondary" data-command="logout">Salir</button>
@@ -289,28 +336,25 @@ function lineupPitch(members, capacity, scoreRound) {
 
 function lineupPage() {
   const player = me();
-  const round = player && state.rounds.find(({ id }) => id === lineupRound);
+  const round = state.rounds.find(({ id }) => id === lineupRound);
   const locked = round && isWeekLocked(round);
   const members = (round ? myWeeklyRoster(round) : state.roster).map(monitorFor).filter(Boolean);
   const capacity = locked ? members.length : state.rosterSize;
-  const scoreRound = player && (round ?? lastScoredRound());
+  const scoreRound = round ?? lastScoredRound();
   const standing = myStanding();
   const result = standing?.results.find(({ roundId }) => roundId === round?.id);
   const value = members.reduce((total, { marketValueCents }) => total + BigInt(marketValueCents), 0n);
-  const edit = player ? `<button id="lineup-edit" type="button" class="button ${lineupEditing ? "secondary" : "accent"}"
+  const edit = `<button id="lineup-edit" type="button" class="button ${lineupEditing ? "secondary" : "accent"}"
     data-command="edit-lineup" aria-expanded="${lineupEditing}" aria-controls="lineup-content">
     ${lineupEditing ? "Volver al campo" : "Editar plantilla"}
-  </button>` : "";
-  const description = player ? h(player.team) : state.players.length
-    ? "Elige un mánager en Vista local para ver su equipo."
-    : "Inscribe un mánager en Organización → Gestión → Equipos para crear tu plantilla.";
-  const toolbar = player ? `<div class="lineup-toolbar">
+  </button>`;
+  const toolbar = `<div class="lineup-toolbar">
     ${roundSelect("lineup-round", lineupRound, "Plantilla actual")}
     ${round ? `<div class="round-meta">${roundStatus(round)}${roundDate(round)}</div>`
       : scoreRound ? `<p class="hint">Puntos individuales · Semana ${scoreRound.id}</p>` : ""}
-  </div>` : "";
+  </div>`;
 
-  return `${pageHead("Alineación", description, edit)}
+  return `${pageHead("Alineación", h(player.team), edit)}
     <dl class="lineup-stats" aria-label="Datos de la alineación">
       <div><dt>Monitores</dt><dd>${members.length}${locked ? "" : ` / ${capacity}`}</dd></div>
       <div><dt>Valor del equipo</dt><dd>${euro.format(marketValueDecimal(value))}</dd></div>
@@ -652,7 +696,7 @@ function managementPage() {
 }
 
 function render() {
-  if (!state.viewer) {
+  if (!state.viewer || (localLeague && authMode === "admin")) {
     app.innerHTML = authScreen();
     return;
   }
@@ -697,6 +741,7 @@ const actions = {
   login: ({ alias, password }) => ["/api/login", "POST", { alias, password }],
   "admin-login": ({ password }) => ["/api/login", "POST", { role: "admin", password }],
   register: (values) => ["/api/register", "POST", { ...values, sectionId: Number(values.sectionId) }, "Equipo inscrito."],
+  "local-team": ({ playerId }) => ["/api/local/team", "POST", { playerId: Number(playerId) }],
   "market-transfer": (_, { dataset }) => ["/api/roster", "PATCH",
     { monitorId: Number(dataset.id), action: dataset.move }, dataset.move === "sign" ? "Monitor fichado." : "Plaza liberada."],
   round: (values, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", values, "Calendario guardado."],
@@ -718,6 +763,7 @@ const actions = {
 async function saveForm(form, button) {
   const formName = form.dataset.form;
   const action = actions[formName];
+  const entry = ["login", "admin-login", "register", "local-team"].includes(formName);
   const importing = localLeague && ["import-backup", "import-monitors"].includes(formName);
   if ((!action && !importing) || saving) return;
   const errorBox = form.querySelector("[data-error]");
@@ -753,7 +799,7 @@ async function saveForm(form, button) {
     if (formName === "edit-monitor-value" && state.storageWarning) {
       message = "Valor actualizado en esta sesión. Descarga el registro para conservarlo.";
     }
-    if (["login", "admin-login", "register"].includes(formName)) resetRoute();
+    if (entry) resetRoute();
     render();
     if (formName === "add-monitor" && currentRoute === "monitores") {
       document.getElementById("monitor-name")?.focus({ preventScroll: true });
@@ -767,7 +813,7 @@ async function saveForm(form, button) {
     }
     if (message) alertUser(message);
   } catch (error) {
-    if (error.status === 401 && state.viewer) {
+    if (error.status === 401 && state.viewer && !entry) {
       await start();
       alertUser(error.message, true);
     } else if (form.isConnected) {
@@ -792,7 +838,7 @@ app.addEventListener("submit", (event) => {
 app.addEventListener("keydown", (event) => {
   if (!localLeague || event.key !== "Enter" || event.isComposing || event.repeat) return;
   const input = event.target;
-  if (input.tagName !== "INPUT" || !["text", "number", "date"].includes(input.type) || !input.form?.dataset.form) return;
+  if (input.tagName !== "INPUT" || !["text", "number", "date", "password"].includes(input.type) || !input.form?.dataset.form) return;
   const button = input.form.querySelector('button[type="submit"]');
   if (!button) return;
   event.preventDefault();
@@ -809,14 +855,19 @@ app.addEventListener("change", async (event) => {
   const control = event.target;
   if (control.dataset.select === "local-view" && localLeague) {
     if (saving) {
-      control.value = String(localView());
+      control.value = localView();
+      return;
+    }
+    if (control.value === localView()) return;
+    if (control.value === "admin") {
+      authMode = "admin";
+      render();
+      document.getElementById("password")?.focus();
       return;
     }
     saving = control.disabled = true;
     try {
-      let view = control.value || null;
-      if (view && view !== "preview") view = Number(view);
-      localLeague.viewAs(view);
+      await request("/api/logout", "POST");
       await reload();
       resetRoute();
       render();
@@ -873,7 +924,7 @@ app.addEventListener("click", async (event) => {
   if (control.hasAttribute("data-route")) {
     if (control.dataset.panel) manageTab = control.dataset.panel;
     if (control.getAttribute("href") === location.hash) render();
-  } else if (control.dataset.auth) {
+  } else if (control.dataset.auth && !saving) {
     authMode = control.dataset.auth;
     render();
     app.querySelector("input")?.focus();

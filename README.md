@@ -6,11 +6,11 @@ Liga del Grupo Scout Ciudad del Sol 108. Cada participante gestiona una plantill
 
 Descarga [index.html](index.html) y ábrelo en el navegador con doble clic.
 
-1. Añade las secciones en **Gestión → Secciones** y abre **Monitores** para registrar y consultar el listado.
-2. Inscribe a los mánagers en **Equipos**. Usa **Vista local** para elegir a cada mánager. Desde **Alineación → Editar plantilla** puede fichar monitores o liberar plazas.
-3. Vuelve a **Organización**, abre la semana y pulsa **Fijar plantillas** cuando empiece. Registra las aportaciones de los monitores en **Puntuaciones**.
+1. En la primera visita, crea tu equipo. FantasyScout abre **Alineación** y recuerda tu equipo en ese navegador. Si ya había un equipo en la liga local, puedes elegir **Usar un equipo guardado**.
+2. Desde **Vista local → Organización**, introduce la contraseña acordada para añadir secciones, registrar monitores y gestionar semanas. También puedes entrar desde **Acceso de organización** en la pantalla inicial.
+3. Vuelve a **Vista usuario** para fichar monitores o liberar plazas en **Alineación → Editar plantilla**. En Organización, pulsa **Fijar plantillas** al empezar una semana y registra los puntos en **Puntuaciones**.
 
-En **Vista local**, selecciona **Vista usuario** para consultar Alineación y Clasificación antes de inscribir equipos. Para gestionar una plantilla, elige el alias de su mánager.
+El acceso de Organización en el HTML se valida en el navegador y se bloquea al salir o recargar. La versión con servidor usa credenciales y sesiones propias.
 
 La liga se guarda en el navegador desde el que abres el archivo. **Gestión → Copia** permite descargarla en JSON y cargarla en otro navegador. El archivo HTML se puede regenerar con `npm run build:offline`.
 

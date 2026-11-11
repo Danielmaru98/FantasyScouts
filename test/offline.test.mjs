@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash, webcrypto } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
@@ -13,7 +14,14 @@ function memoryStorage() {
   };
 }
 
+const testOrganizerKey = "82746305129";
+const organizerHash = createHash("sha256").update(testOrganizerKey).digest("hex");
+const newLeague = (storage) => createOfflineLeague({ storage, organizerHash });
 const getState = (league) => league.request("/api/state", "GET");
+const openOrganization = (league, password = testOrganizerKey) =>
+  league.request("/api/login", "POST", { role: "admin", password });
+const openUser = (league) => league.request("/api/logout", "POST");
+const chooseTeam = (league, playerId) => league.request("/api/local/team", "POST", { playerId });
 const add = (league, alias, team, sectionId) =>
   league.request("/api/admin/players", "POST", { alias, team, sectionId });
 const monitor = (league, name, sectionId, marketValueCents) =>
@@ -27,7 +35,8 @@ const transfer = (league, monitorId, action) => league.request("/api/roster", "P
 
 test("la liga local congela la plantilla de cada semana y aplica los cambios a la siguiente", async () => {
   const storage = memoryStorage();
-  const league = createOfflineLeague({ storage });
+  const league = newLeague(storage);
+  await openOrganization(league);
   await league.request("/api/admin/sections", "POST", { name: "Manada" });
   await add(league, "Norte", "Mapas", 1);
   await add(league, "Este", "Faroles", 2);
@@ -38,20 +47,21 @@ test("la liga local congela la plantilla de cada semana y aplica los cambios a l
   await league.request("/api/admin/settings", "PATCH", { rosterSize: 2 });
   await assert.rejects(transfer(league, 2, "sign"), /vista de un mánager/);
 
-  league.viewAs(1);
+  await openUser(league);
+  await chooseTeam(league, 1);
   await assert.rejects(roster(league, [2, 2]), /una plaza/);
   await roster(league, [2]);
   await transfer(league, 3, "sign");
   await transfer(league, 3, "sign");
   await assert.rejects(transfer(league, 1, "sign"), /hasta 2/);
   assert.deepEqual((await getState(league)).roster, [2, 3]);
-  league.viewAs(null);
+  await openOrganization(league);
   await phase(league, "open");
   await phase(league, "lock");
-  league.viewAs(1);
+  await openUser(league);
   await transfer(league, 2, "release");
   await assert.rejects(score(league, 2, ["task"]), /sección/);
-  league.viewAs(null);
+  await openOrganization(league);
   await score(league, 1, ["task", "help", "help"]);
   await score(league, 2, ["task"]);
   await score(league, 3, ["challenge"]);
@@ -61,14 +71,14 @@ test("la liga local congela la plantilla de cada semana y aplica los cambios a l
   await score(league, 3, ["improvement"], 2);
   await league.request("/api/admin/rounds", "POST", {});
 
-  const reopened = createOfflineLeague({ storage });
+  const reopened = newLeague(storage);
   const state = await getState(reopened);
+  assert.equal(state.viewer.role, "player");
   assert.equal(state.rounds[0].status, "closed");
   assert.equal(state.rounds.at(-1).id, 5);
   assert.deepEqual(state.standings[0].results.slice(0, 2), [
     { roundId: 1, total: 5, scored: true }, { roundId: 2, total: 1, scored: true },
   ]);
-  reopened.viewAs(1);
   assert.deepEqual((await getState(reopened)).roster, [3]);
   assert.deepEqual((await getState(reopened)).weeklyRosters.map(({ monitorIds }) => monitorIds), [[2, 3], [3]]);
 });
@@ -93,25 +103,31 @@ test("las copias de la versión anterior conservan los monitores, fichajes y pun
   };
   const storage = memoryStorage();
   storage.setItem("fantasyscout-108-local-v1", JSON.stringify(old));
-  const league = createOfflineLeague({ storage });
+  const league = newLeague(storage);
+  assert.equal((await getState(league)).viewer, null);
+  assert.equal((await getState(league)).players[0].team, "Mapas");
+  await chooseTeam(league, 1);
   const view = await getState(league);
   assert.deepEqual(view.monitors.map(({ name }) => name), ["Norte", "Río", "Pino"]);
   assert.ok(view.monitors.every(({ marketValueCents }) => marketValueCents === DEFAULT_MARKET_VALUE_CENTS));
   assert.equal(view.standings[0].total, 5);
   assert.equal(view.monitorPoints.find(({ monitorId }) => monitorId === 1).points, 8);
-  league.viewAs(1);
   assert.deepEqual((await getState(league)).roster, [2, 3]);
+  await openOrganization(league);
   assert.equal(JSON.parse(league.exportBackup()).version, 2);
 });
 
 test("una copia permite trasladar la liga y los errores de importación conservan los datos", async () => {
   const unavailable = { getItem: () => null, setItem: () => { throw new Error("quota"); } };
-  const local = createOfflineLeague({ storage: unavailable });
+  const local = newLeague(unavailable);
+  await openOrganization(local);
   await add(local, "Norte", "Mapas", 1);
   await monitor(local, "Junco", 1, 148_250);
   assert.match((await getState(local)).storageWarning, /Descarga una copia/);
 
-  const restored = createOfflineLeague({ storage: memoryStorage() });
+  const restored = newLeague(memoryStorage());
+  await assert.rejects(restored.importBackup(local.exportBackup()), { status: 403 });
+  await openOrganization(restored);
   await restored.importBackup(local.exportBackup());
   assert.equal((await getState(restored)).players[0].team, "Mapas");
   assert.equal((await getState(restored)).monitors[0].marketValueCents, 148_250);
@@ -123,14 +139,17 @@ test("una copia permite trasladar la liga y los errores de importación conserva
 
 test("el registro de monitores persiste y las copias se importan sin duplicar registros", async () => {
   const storage = memoryStorage();
-  const source = createOfflineLeague({ storage });
+  const source = newLeague(storage);
+  await openOrganization(source);
   await source.request("/api/admin/sections", "POST", { name: "Manada" });
   await monitor(source, "Senda", 1);
   await monitor(source, "Olmo", 2, 155_050);
   await assert.rejects(setValue(source, 1, -5), /valor en euros/);
   await setValue(source, 1, 223_450);
 
-  const reopened = createOfflineLeague({ storage });
+  const reopened = newLeague(storage);
+  assert.equal((await getState(reopened)).viewer, null);
+  await openOrganization(reopened);
   assert.deepEqual((await getState(reopened)).monitors.map(({ name }) => name), ["Senda", "Olmo"]);
   const register = reopened.exportMonitorRegister();
   assert.deepEqual(JSON.parse(register).monitors, [
@@ -138,13 +157,15 @@ test("el registro de monitores persiste y las copias se importan sin duplicar re
     { name: "Olmo", section: "Manada", marketValueCents: 155_050 },
   ]);
 
-  const target = createOfflineLeague({ storage: memoryStorage() });
+  const target = newLeague(memoryStorage());
+  await openOrganization(target);
   await add(target, "Mapa", "Brújulas", 1);
   await monitor(target, "SENDA", 1);
-  target.viewAs(1);
+  await openUser(target);
+  await chooseTeam(target, 1);
   await roster(target, [1]);
   await assert.rejects(setValue(target, 1, 350_000), { status: 403 });
-  target.viewAs(null);
+  await openOrganization(target);
   assert.equal(await target.importMonitorRegister(register), 1);
   assert.equal(await target.importMonitorRegister(reopened.exportBackup()), 0);
   await assert.rejects(target.importMonitorRegister("no es un JSON"), /copia válida/);
@@ -154,21 +175,24 @@ test("el registro de monitores persiste y las copias se importan sin duplicar re
     { id: 2, name: "Olmo", sectionId: 2, marketValueCents: 155_050 },
   ]);
   assert.equal(view.sections[1].name, "Manada");
-  target.viewAs(1);
+  await openUser(target);
   assert.deepEqual((await getState(target)).roster, [1]);
 });
 
 test("el registro avisa si el navegador acepta el guardado pero descarta los cambios", async () => {
   const storage = { getItem: () => null, setItem() {} };
-  const league = createOfflineLeague({ storage });
+  const league = newLeague(storage);
+  await openOrganization(league);
   await monitor(league, "Senda", 1);
   const view = await getState(league);
   assert.match(view.storageWarning, /Descarga una copia desde Monitores/);
   assert.equal(JSON.parse(league.exportMonitorRegister()).monitors[0].name, "Senda");
-  assert.equal((await getState(createOfflineLeague({ storage }))).monitors.length, 0);
+  const reopened = newLeague(storage);
+  await openOrganization(reopened);
+  assert.equal((await getState(reopened)).monitors.length, 0);
 });
 
-test("index.html arranca sin red y permite registrar y alinear monitores por clic", async () => {
+test("index.html crea un equipo en la primera visita y pide la clave para organizar", async () => {
   const [html, pagesHtml] = await Promise.all([
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../docs/index.html", import.meta.url), "utf8"),
@@ -185,10 +209,14 @@ test("index.html arranca sin red y permite registrar y alinear monitores por cli
   const notice = { classList: { toggle() {} } };
   const browser = { localStorage: memoryStorage(), addEventListener() {} };
   const location = { protocol: "file:", hash: "" };
-  vm.runInNewContext(script, {
+  const testScript = script.replace(/(const LOCAL_ORGANIZER_HASH = ")[a-f0-9]{64}/, (_, declaration) => declaration + organizerHash);
+  assert.notEqual(testScript, script);
+  vm.runInNewContext(testScript, {
     document: { querySelector: (selector) => selector === "#app" ? mount : notice, getElementById: () => null },
     window: browser,
     navigator: {},
+    crypto: webcrypto,
+    TextEncoder,
     location,
     history: { replaceState: (_, __, hash) => { location.hash = hash; } },
     FormData: class extends Map {
@@ -199,40 +227,46 @@ test("index.html arranca sin red y permite registrar y alinear monitores por cli
     fetch: () => { fetched = true; throw new Error("network unavailable"); },
   });
   await new Promise((resolve) => setImmediate(resolve));
-  assert.match(mount.innerHTML, /Prepara tu liga/);
-  assert.match(mount.innerHTML, /Vista local/);
-  assert.match(mount.innerHTML, /<option value="preview">Vista usuario<\/option>/);
+  assert.match(mount.innerHTML, /Crea tu equipo/);
+  assert.doesNotMatch(mount.innerHTML, /Navegación principal/);
+  await assert.rejects(add(browser.fantasyScoutLocal, "Norte", "Mapas", 1), { status: 403 });
+
+  async function submit(name, values, dataset = {}) {
+    const error = {};
+    const form = {
+      dataset: { form: name, ...dataset }, values, isConnected: true,
+      reportValidity: () => true, querySelector: () => error,
+    };
+    const button = { type: "submit", form };
+    let prevented = false;
+    await listeners.get("click")({ target: { closest: () => button }, preventDefault: () => { prevented = true; } });
+    assert.equal(prevented, true);
+    return error;
+  }
 
   const switchView = (value) => listeners.get("change")({ target: { dataset: { select: "local-view" }, value } });
-  await switchView("preview");
+  await submit("register", { alias: "Norte", team: "Mapas", sectionId: "1" });
   assert.equal(location.hash, "#alineacion");
-  assert.equal((await getState(browser.fantasyScoutLocal)).viewer.role, "preview");
-  assert.match(mount.innerHTML, /<option value="preview" selected>Vista usuario<\/option>/);
+  assert.equal((await getState(browser.fantasyScoutLocal)).viewer.player.team, "Mapas");
+  assert.match(mount.innerHTML, /<option value="player" selected>Vista usuario<\/option>/);
   assert.match(mount.innerHTML, /Alineación en el campo/);
-  assert.doesNotMatch(mount.innerHTML, /data-command="edit-lineup"/);
-  await assert.rejects(add(browser.fantasyScoutLocal, "Norte", "Mapas", 1), { status: 403 });
-  await switchView("");
+  await switchView("admin");
+  assert.match(mount.innerHTML, /Contraseña de Organización/);
+  const wrong = await submit("admin-login", { password: "00000000000" });
+  assert.match(wrong.textContent, /no coincide/);
+  assert.equal((await getState(browser.fantasyScoutLocal)).viewer.role, "player");
+  await submit("admin-login", { password: testOrganizerKey });
   assert.equal(location.hash, "#inicio");
+  assert.equal((await getState(browser.fantasyScoutLocal)).viewer.role, "admin");
 
   location.hash = "#monitores";
-  const error = {};
-  const form = {
-    dataset: { form: "add-monitor" },
-    values: { name: "Junco", sectionId: "1", marketValue: "1.250,75" },
-    reportValidity: () => true,
-    querySelector: () => error,
-  };
-  const button = { type: "submit", form };
-  let prevented = false;
-  await listeners.get("click")({ target: { closest: () => button }, preventDefault: () => { prevented = true; } });
-  assert.equal(prevented, true);
+  await submit("add-monitor", { name: "Junco", sectionId: "1", marketValue: "1.250,75" });
   assert.match(mount.innerHTML, /<th scope="row">Junco<\/th>/);
   assert.match(mount.innerHTML, /1\.250,75\s€/);
   assert.match(mount.innerHTML, /<option value="1" selected>Tropa Jungla<\/option>/);
   assert.equal(notice.textContent, "Monitor registrado.");
 
-  await add(browser.fantasyScoutLocal, "Norte", "Mapas", 1);
-  await switchView("1");
+  await switchView("player");
   assert.equal(location.hash, "#alineacion");
   const navigation = mount.innerHTML.match(/<nav [^>]*>([\s\S]+?)<\/nav>/)?.[1];
   assert.ok(navigation);
@@ -242,13 +276,10 @@ test("index.html arranca sin red y permite registrar y alinear monitores por cli
   const editLineup = { dataset: { command: "edit-lineup" }, hasAttribute: () => false };
   await listeners.get("click")({ target: { closest: () => editLineup } });
   assert.match(mount.innerHTML, /Fichar a Junco/);
-  const sign = {
-    type: "submit",
-    form: { ...form, dataset: { form: "market-transfer", id: "1", move: "sign" }, values: {} },
-  };
-  await listeners.get("click")({ target: { closest: () => sign }, preventDefault() {} });
+  await submit("market-transfer", {}, { id: "1", move: "sign" });
   assert.equal(notice.textContent, "Monitor fichado.");
   await listeners.get("click")({ target: { closest: () => editLineup } });
   assert.match(mount.innerHTML, /class="pitch-name" title="Junco">Junco/);
+  await assert.rejects(add(browser.fantasyScoutLocal, "Sur", "Faroles", 1), { status: 403 });
   assert.equal(fetched, false);
 });

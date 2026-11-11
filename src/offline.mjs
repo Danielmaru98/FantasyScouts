@@ -5,6 +5,8 @@ import {
 } from "./league.mjs";
 
 const LOCAL_KEY = "fantasyscout-108-local-v1";
+const PROFILE_KEY = `${LOCAL_KEY}-profile`;
+const LOCAL_ORGANIZER_HASH = "63640264849a87c90356129d99ea165e37aa5fabc1fea46906df1a7ca50db492";
 const LOCAL_FORMAT = "fantasyscout-108";
 const MONITOR_REGISTER_FORMAT = "fantasyscout-monitores";
 const LOCAL_STATUSES = new Set(["planned", "open", "scoring", "closed"]);
@@ -27,6 +29,14 @@ function localText(value, label, max, optional = false) {
     throw localError(`Revisa ${label}. El máximo es de ${max} caracteres.`);
   }
   return text;
+}
+
+async function matchesOrganizerKey(password, expectedHash) {
+  if (typeof password !== "string" || !/^\d{11}$/.test(password)) return false;
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw localError("Abre FantasyScout por HTTPS o abre el HTML directamente en tu navegador.", 503);
+  const digest = await subtle.digest("SHA-256", new TextEncoder().encode(password));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("") === expectedHash;
 }
 
 function localDate(value) {
@@ -131,6 +141,18 @@ function addLocalId(rows) {
   return id;
 }
 
+function addPlayerTo(snapshot, { alias, team, sectionId }) {
+  const name = localText(alias, "el alias", 32);
+  const teamName = localText(team, "el nombre del equipo", 52);
+  if (!snapshot.sections.some(({ id }) => id === sectionId)) throw localError("Elige una sección de la liga.");
+  if (snapshot.players.some((player) => localKey(player.alias) === localKey(name))) {
+    throw localError("Ese alias ya está inscrito. Prueba con otro.", 409);
+  }
+  const player = { id: addLocalId(snapshot.players), alias: name, team: teamName, sectionId };
+  snapshot.players.push(player);
+  return player;
+}
+
 function addMonitorTo(snapshot, name, sectionId, marketValueCents) {
   if (snapshot.monitors.some((monitor) => monitor.sectionId === sectionId && localKey(monitor.name) === localKey(name))) {
     return false;
@@ -168,8 +190,9 @@ function readMonitorRegister(serialized) {
   });
 }
 
-export function createOfflineLeague({ storage = null, locks = null } = {}) {
-  let activeView = null;
+export function createOfflineLeague({ storage = null, locks = null, organizerHash = LOCAL_ORGANIZER_HASH } = {}) {
+  let organizerUnlocked = false;
+  let profileAlias = null;
   let data = newLocalLeague();
   let lastStored = null;
   let warning = storage ? "" : UNSAVED;
@@ -210,16 +233,41 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
     }
   }
 
-  function actorFor(snapshot) {
-    return snapshot.players.find(({ id }) => id === activeView) ?? null;
+  function playerFor(snapshot) {
+    if (storage) {
+      try {
+        profileAlias = storage.getItem(PROFILE_KEY);
+      } catch {
+        storage = null;
+        warning = UNSAVED;
+      }
+    }
+    return snapshot.players.find(({ alias }) => localKey(alias) === profileAlias) ?? null;
+  }
+
+  function rememberPlayer(player) {
+    profileAlias = localKey(player.alias);
+    if (!storage) return;
+    try {
+      storage.setItem(PROFILE_KEY, profileAlias);
+      if (storage.getItem(PROFILE_KEY) !== profileAlias) throw new Error("No se pudo guardar el equipo de este navegador.");
+    } catch {
+      storage = null;
+      warning = UNSAVED;
+    }
+  }
+
+  function requireOrganization() {
+    if (!organizerUnlocked) throw localError("Introduce la contraseña para acceder a Organización.", 403);
   }
 
   function stateFor() {
     const snapshot = read();
-    const actor = actorFor(snapshot);
-    const isPreview = activeView === "preview";
+    const player = playerFor(snapshot);
+    const actor = organizerUnlocked ? { isAdmin: true, playerId: null } : player && { isAdmin: false, playerId: player.id };
     return {
-      ...leagueView(snapshot, { isAdmin: !actor && !isPreview, isPreview, playerId: actor?.id ?? null }),
+      ...leagueView(snapshot, actor),
+      players: snapshot.players,
       storageWarning: warning,
     };
   }
@@ -235,16 +283,10 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
     };
 
     if (route[0] === "admin") {
-      if (actor) throw localError("Selecciona la vista Organización para hacer este cambio.", 403);
+      requireOrganization();
       const id = Number(route[2]);
       if (route[1] === "players" && method === "POST") {
-        const alias = localText(body.alias, "el alias", 32);
-        const team = localText(body.team, "el nombre del equipo", 52);
-        if (!lookupSection(body.sectionId)) throw localError("Elige una sección de la liga.");
-        if (draft.players.some((player) => localKey(player.alias) === localKey(alias))) {
-          throw localError("Ese alias ya está inscrito. Prueba con otro.", 409);
-        }
-        draft.players.push({ id: addLocalId(draft.players), alias, team, sectionId: body.sectionId });
+        addPlayerTo(draft, body);
         return;
       }
       if (route[1] === "sections" && ["POST", "PATCH"].includes(method)) {
@@ -341,52 +383,70 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
   }
 
   async function serializedWrite(work) {
-    function apply() {
-      if (activeView === "preview") throw localError("Elige Organización o un mánager para hacer cambios.", 403);
-      return work();
-    }
-    if (!locks?.request) return apply();
+    if (!locks?.request) return work();
     let acquired = false;
     try {
       return await locks.request(LOCAL_KEY, () => {
         acquired = true;
-        return apply();
+        return work();
       });
     } catch (error) {
       if (acquired) throw error;
-      return apply();
+      return work();
     }
   }
 
   return {
-    async request(path, method, body) {
+    async request(path, method, body = {}) {
       if (path === "/api/state" && method === "GET") return stateFor();
+      if (path === "/api/login" && method === "POST") {
+        if (body.role !== "admin" || !await matchesOrganizerKey(body.password, organizerHash)) {
+          throw localError("La contraseña de Organización no coincide.", 401);
+        }
+        organizerUnlocked = true;
+        return { ok: true };
+      }
+      if (path === "/api/logout" && method === "POST") {
+        organizerUnlocked = false;
+        return { ok: true };
+      }
       await serializedWrite(() => {
         const draft = JSON.parse(JSON.stringify(read()));
-        edit(path, method, body, draft, actorFor(draft));
+        const player = playerFor(draft);
+        if (method === "POST" && (path === "/api/register" || path === "/api/local/team")) {
+          if (organizerUnlocked || player) throw localError("Vuelve a Vista usuario para entrar en tu equipo.", 409);
+          if (path === "/api/local/team") {
+            const existing = draft.players.find(({ id }) => id === body.playerId);
+            if (!existing) throw localError("Elige un mánager inscrito.");
+            rememberPlayer(existing);
+          } else {
+            const registered = addPlayerTo(draft, body);
+            write(draft);
+            rememberPlayer(registered);
+          }
+          return;
+        }
+        if (!organizerUnlocked && !player) throw localError("Crea tu equipo o entra en Organización.", 403);
+        edit(path, method, body, draft, organizerUnlocked ? null : player);
         write(draft);
       });
       return { ok: true };
     },
-    viewAs(view) {
-      if (view !== null && view !== "preview" && !read().players.some(({ id }) => id === view)) {
-        throw localError("Elige un mánager inscrito.");
-      }
-      activeView = view;
-    },
     exportBackup() {
+      requireOrganization();
       return JSON.stringify(read(), null, 2);
     },
     exportMonitorRegister() {
+      requireOrganization();
       return JSON.stringify({
         format: MONITOR_REGISTER_FORMAT, version: 1, monitors: monitorRegisterRows(read()),
       }, null, 2);
     },
     async importMonitorRegister(serialized) {
-      const entries = readMonitorRegister(serialized);
       return serializedWrite(() => {
+        requireOrganization();
+        const entries = readMonitorRegister(serialized);
         const draft = JSON.parse(JSON.stringify(read()));
-        if (actorFor(draft)) throw localError("Selecciona la vista Organización para importar el registro.", 403);
         const sections = new Map(draft.sections.map(({ name, id }) => [localKey(name), id]));
         let added = 0;
         for (const { name, section, marketValueCents } of entries) {
@@ -404,9 +464,10 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
       });
     },
     async importBackup(serialized) {
-      const next = normalizeCopy(serialized);
-      await serializedWrite(() => write(next));
-      activeView = null;
+      await serializedWrite(() => {
+        requireOrganization();
+        write(normalizeCopy(serialized));
+      });
     },
   };
 }
