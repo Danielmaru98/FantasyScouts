@@ -7,7 +7,7 @@ Liga del Grupo Scout Ciudad del Sol 108. Cada participante gestiona una plantill
 Descarga [index.html](index.html) y ábrelo en el navegador con doble clic.
 
 1. Añade las secciones en **Gestión → Secciones** y abre **Monitores** para registrar y consultar el listado.
-2. Inscribe a los mánagers en **Equipos**. Usa **Vista local** para elegir a cada mánager y abre **Mercado** para fichar monitores o liberar plazas de su plantilla.
+2. Inscribe a los mánagers en **Equipos**. Usa **Vista local** para elegir a cada mánager. Desde **Alineación → Editar plantilla** puede fichar monitores o liberar plazas.
 3. Vuelve a **Organización**, abre la semana y pulsa **Fijar plantillas** cuando empiece. Registra las aportaciones de los monitores en **Puntuaciones**.
 
 La liga se guarda en el navegador desde el que abres el archivo. **Gestión → Copia** permite descargarla en JSON y cargarla en otro navegador. El archivo HTML se puede regenerar con `npm run build:offline`.
@@ -52,7 +52,7 @@ Para que el grupo acceda desde sus dispositivos, ejecuta la aplicación en un se
 ## Organizar la liga
 
 1. En **Gestión → Secciones**, añade las secciones del grupo. Tropa Jungla viene dada de alta. Registra los monitores por separado en **Monitores**.
-2. Cada mánager inscribe su equipo y hace sus fichajes en **Mercado**. Allí puede buscar monitores por nombre o sección y consultar sus puntos de la última semana registrada y el total acumulado. El límite empieza en cinco monitores y se ajusta desde **Gestión → Equipos**.
+2. Cada mánager ve **Alineación** y **Clasificación**. En el campo puede consultar su plantilla actual o la que se fijó para una semana. En **Editar plantilla** puede buscar monitores por nombre o sección, consultar su valor y sus puntos, ficharlos o liberar plazas. El límite empieza en cinco monitores y se ajusta desde **Gestión → Equipos**.
 3. En **Gestión → Semanas**, abre la semana y pulsa **Fijar plantillas** al empezar. Los cambios posteriores en el equipo se aplican a las siguientes semanas. Puedes añadir semanas al calendario.
 4. En **Puntuaciones**, marca las aportaciones de cada monitor. La organización puede asignar un responsable de puntuación por sección. Pulsa **Cerrar semana** al terminar la revisión.
 

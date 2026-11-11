@@ -6,7 +6,9 @@ const euro = new Intl.NumberFormat("es-ES", {
   style: "currency", currency: "EUR", useGrouping: "always", trailingZeroDisplay: "stripIfInteger",
 });
 const labels = { planned: "Programada", open: "Plantillas abiertas", scoring: "En puntuación", closed: "Cerrada" };
-const routes = { inicio: "Inicio", alineacion: "Mi equipo", mercado: "Mercado", clasificacion: "Clasificación", jornadas: "Semanas", monitores: "Monitores", gestion: "Gestión" };
+const routes = { inicio: "Inicio", alineacion: "Alineación", mercado: "Mercado", clasificacion: "Clasificación", jornadas: "Semanas", monitores: "Monitores", gestion: "Gestión" };
+const organizationRoutes = ["inicio", "mercado", "clasificacion", "jornadas", "monitores", "gestion"];
+const managerRoutes = ["alineacion", "clasificacion"];
 const transition = {
   planned: { action: "open", label: "Abrir semana", hint: "Los mánagers podrán revisar su equipo para esta semana." },
   open: { action: "lock", label: "Fijar plantillas", hint: "Guarda la plantilla de cada equipo para esta semana y habilita el registro de puntos." },
@@ -22,7 +24,8 @@ const refreshButton = '<button class="button secondary" type="button" data-comma
 let state;
 let authMode = "login";
 let manageTab = "rounds";
-let lineupRound;
+let lineupRound = 0;
+let lineupEditing = false;
 let setupRound;
 let reviewRound;
 let reviewSection = 0;
@@ -35,6 +38,7 @@ let currentRoute = "inicio";
 
 const isAdmin = () => state.viewer?.role === "admin";
 const canReview = () => isAdmin() || Boolean(state.viewer?.reviewIds.length);
+const navigation = () => isAdmin() ? organizationRoutes : managerRoutes;
 const me = () => state.viewer?.player;
 const sectionName = (id) => state.sections.find((section) => section.id === id)?.name ?? "Sección";
 const monitorFor = (id) => state.monitors.find((monitor) => monitor.id === id);
@@ -107,7 +111,7 @@ function parseMarketValue(euros) {
 
 function brand(link = true) {
   const tag = link ? "a" : "div";
-  const href = link ? ' href="#inicio" data-route' : "";
+  const href = link ? ` href="#${navigation()[0]}" data-route` : "";
   return `<${tag} class="brand"${href}>
     <span class="mark" aria-hidden="true"></span>
     <span><span class="brand-name">FantasyScout</span><span class="brand-group">Grupo 108 · Lorca</span></span>
@@ -164,9 +168,6 @@ function roundDate(round) {
 }
 
 function topBar() {
-  const tabs = Object.entries(routes).filter(([key]) => {
-    return (key !== "alineacion" || !isAdmin()) && (key !== "gestion" || canReview());
-  });
   const account = localLeague ? `<div class="local-account">
     <label for="local-view">Vista local</label>
     <select id="local-view" data-select="local-view">
@@ -176,12 +177,14 @@ function topBar() {
   </div>` : `<div class="account"><span>${isAdmin() ? "Organización" : h(me().alias)}</span>
     <button type="button" class="button secondary" data-command="logout">Salir</button>
   </div>`;
+  const review = !isAdmin() && canReview()
+    ? '<a class="button secondary" href="#gestion" data-route>Puntuar sección</a>' : "";
   return `<header class="topbar"><div class="topbar-inner">
     ${brand()}
     <nav class="main-nav" aria-label="Navegación principal">
-      ${tabs.map(([key, label]) => `<a href="#${key}" data-route${key === currentRoute ? ' aria-current="page"' : ""}>${label}</a>`).join("")}
+      ${navigation().map((key) => `<a href="#${key}" data-route${key === currentRoute ? ' aria-current="page"' : ""}>${routes[key]}</a>`).join("")}
     </nav>
-    ${account}
+    <div class="view-controls">${account}${review}</div>
   </div></header>`;
 }
 
@@ -192,18 +195,6 @@ function initials(name) {
 function personLine(title, detail) {
   return `<div class="person-line"><span class="avatar" aria-hidden="true">${h(initials(title))}</span>
     <span class="person-copy"><strong>${h(title)}</strong><small>${h(detail)}</small></span></div>`;
-}
-
-function rosterSummary(round) {
-  const members = myWeeklyRoster(round).map(monitorFor).filter(Boolean);
-  if (!members.length) return '<p class="empty">La plantilla de esta semana está vacía.</p>';
-  const scores = new Map(state.monitorPoints.filter(({ roundId }) => roundId === round.id)
-    .map(({ monitorId, points }) => [monitorId, points]));
-  return `<ul class="person-list">${members.map((monitor) => {
-    const points = scores.get(monitor.id);
-    return `<li>${personLine(monitor.name, sectionName(monitor.sectionId))}
-      <span class="points">${points === undefined && round.status !== "closed" ? "—" : `${points ?? 0} pt`}</span></li>`;
-  }).join("")}</ul>`;
 }
 
 function stat(label, value) {
@@ -221,10 +212,8 @@ function topFive() {
 
 function home() {
   const round = activeRound();
-  const standing = myStanding();
-  const weekly = standing?.results.find(({ roundId }) => roundId === round.id);
-  const needsMonitors = isAdmin() && state.monitors.length === 0;
-  const needsTeams = isAdmin() && localLeague && state.players.length === 0;
+  const needsMonitors = state.monitors.length === 0;
+  const needsTeams = localLeague && state.players.length === 0;
   const preparing = needsMonitors || needsTeams;
   const title = preparing ? "Prepara tu liga" : `Semana ${round.id}`;
   const description = needsMonitors ? "Registra a los monitores de cada sección para que los mánagers puedan ficharlos."
@@ -232,8 +221,7 @@ function home() {
       : round.challenge || "Consulta las plantillas y los puntos de esta semana.";
   const action = needsMonitors ? '<a class="button accent" href="#monitores" data-route>Registrar monitores</a>'
     : needsTeams ? '<a class="button accent" href="#gestion" data-route data-panel="players">Inscribir equipos</a>'
-      : isAdmin() ? '<a class="button accent" href="#gestion" data-route data-panel="rounds">Gestionar semana</a>'
-        : `<a class="button accent" href="#alineacion" data-route data-round="${round.id}">Ver mi equipo</a>`;
+      : '<a class="button accent" href="#gestion" data-route data-panel="rounds">Gestionar semana</a>';
   const classification = `<section class="card">
     <div class="card-head"><h2>Clasificación</h2><a href="#clasificacion" data-route class="link-button">Ver tabla</a></div>
     ${topFive()}
@@ -243,64 +231,85 @@ function home() {
     <h1>${title}</h1><p>${h(description)}</p>${action}
   </div></section>
   <section class="stat-grid" aria-label="Datos de la liga">
-    ${isAdmin() ? stat("Equipos inscritos", state.players.length) + stat("Monitores registrados", state.monitors.length) +
-      stat("Semanas cerradas", `${state.rounds.filter(({ status }) => status === "closed").length}/${state.rounds.length}`) :
-      stat("Tu puesto", hasResults(standing) ? standing.rank : "—") + stat("Puntos totales", standing?.total ?? 0) +
-      stat(`Puntos semana ${round.id}`, weekly?.scored ? weekly.total : "—")}
+    ${stat("Equipos inscritos", state.players.length)}
+    ${stat("Monitores registrados", state.monitors.length)}
+    ${stat("Semanas cerradas", `${state.rounds.filter(({ status }) => status === "closed").length}/${state.rounds.length}`)}
   </section>
-  ${isAdmin() ? classification : `<div class="home-grid">
-    ${classification}
-    <section class="card">
-      <div class="card-head"><h2>Tu plantilla</h2><span class="hint">Semana ${round.id}</span></div>
-      ${rosterSummary(round)}
-    </section>
-  </div>`}`;
+  ${classification}`;
 }
 
 function pageHead(title, description, action = "") {
   return `<div class="page-head"><div><h1>${title}</h1><p class="muted">${description}</p></div>${action}</div>`;
 }
 
-function roundSelect(id, value) {
-  return `<div class="field"><label for="${id}">Semana</label>
-    <select id="${id}" data-select="${id}">${state.rounds.map((round) =>
+function roundSelect(id, value, currentLabel = "") {
+  return `<div class="field"><label for="${id}">${currentLabel ? "Ver alineación" : "Semana"}</label>
+    <select id="${id}" data-select="${id}">
+      ${currentLabel ? `<option value="0"${choose(0, value)}>${h(currentLabel)}</option>` : ""}
+      ${state.rounds.map((round) =>
       `<option value="${round.id}"${choose(round.id, value)}>Semana ${round.id} · ${labels[round.status]}</option>`).join("")}</select>
   </div>`;
 }
 
-function monitorPicker() {
-  const selected = new Set(state.roster);
-  const groups = state.sections.map((section) => {
-    const monitors = state.monitors.filter(({ sectionId }) => sectionId === section.id);
-    if (!monitors.length) return "";
-    return `<fieldset><legend>${h(section.name)}</legend><ul class="checklist">${monitors.map(({ id, name }) =>
-      `<li><label class="check-row"><input type="checkbox" name="monitor" value="${id}"${selected.has(id) ? " checked" : ""}><strong>${h(name)}</strong></label></li>`,
-    ).join("")}</ul></fieldset>`;
-  }).join("");
-  return `<form class="form" data-form="roster">
-    <div class="card-head"><h2>Plantilla</h2><output class="pill open" data-roster-count>${selected.size} de ${state.rosterSize}</output></div>
-    <p class="hint">Puedes fichar monitores de cualquier sección. La plantilla se conserva entre semanas.</p>
-    <div class="monitor-picker">${groups}</div>
-    ${errorRegion}<button class="button primary" type="submit">Guardar plantilla</button>
-  </form>`;
+function lastScoredRound() {
+  const scoredWeeks = new Set(state.monitorPoints.map(({ roundId }) => roundId));
+  return state.rounds.findLast(({ id }) => scoredWeeks.has(id));
+}
+
+function lineupPitch(members, capacity, scoreRound) {
+  const scores = new Map(state.monitorPoints.filter(({ roundId }) => roundId === scoreRound?.id)
+    .map(({ monitorId, points }) => [monitorId, points]));
+  const slots = Array.from({ length: capacity }, (_, index) => members[index]);
+  const rows = [];
+  const rowSize = capacity <= 6 ? 2 : 4;
+  if (capacity >= 3 && capacity <= 12) rows.push(slots.splice(0, 1));
+  while (slots.length) rows.push(slots.splice(0, rowSize));
+
+  return `<section class="lineup-pitch" aria-label="Alineación en el campo">
+    <div class="pitch-lines" aria-hidden="true"><span class="pitch-area top"></span>
+      <span class="pitch-middle"></span><span class="pitch-area bottom"></span></div>
+    ${rows.map((row) => `<ul class="pitch-row">${row.map((monitor) => {
+      if (!monitor) return '<li class="pitch-slot vacant"><span aria-hidden="true">+</span><small>Libre</small></li>';
+      const points = scores.get(monitor.id) ?? (scoreRound?.status === "closed" ? 0 : undefined);
+      return `<li class="pitch-slot">
+        <div class="pitch-avatar"><span aria-hidden="true">${h(initials(monitor.name))}</span>
+          ${points === undefined ? "" : `<small class="pitch-score">${points} pt</small>`}
+        </div>
+        <strong class="pitch-name" title="${h(monitor.name)}">${h(monitor.name)}</strong>
+      </li>`;
+    }).join("")}</ul>`).join("")}
+    ${capacity ? "" : '<p class="pitch-empty">La plantilla de esta semana está vacía.</p>'}
+  </section>`;
 }
 
 function lineupPage() {
-  const round = roundFor(lineupRound);
-  const result = myStanding()?.results.find(({ roundId }) => roundId === round.id);
-  return `${pageHead("Mi equipo", h(me().team), refreshButton)}
-    <div class="manage-grid">
-      <section class="card">
-        ${state.monitors.length ? monitorPicker() : '<h2>Plantilla</h2><p class="empty">La organización añadirá los monitores disponibles.</p>'}
-      </section>
-      <section class="card">
-        <h2>Puntos de la plantilla</h2>
-        ${roundSelect("lineup-round", round.id)}
-        <div class="round-meta">${roundStatus(round)}${roundDate(round)}</div>
-        ${rosterSummary(round)}
-        ${result?.scored ? `<p><strong>Total de la semana ${result.total} pt</strong></p>` :
-          '<p class="hint">La organización fija la plantilla al iniciar la semana.</p>'}
-      </section>
+  const round = state.rounds.find(({ id }) => id === lineupRound);
+  const locked = round && isWeekLocked(round);
+  const members = (round ? myWeeklyRoster(round) : state.roster).map(monitorFor).filter(Boolean);
+  const capacity = locked ? members.length : state.rosterSize;
+  const scoreRound = round ?? lastScoredRound();
+  const standing = myStanding();
+  const result = standing?.results.find(({ roundId }) => roundId === round?.id);
+  const value = members.reduce((total, { marketValueCents }) => total + BigInt(marketValueCents), 0n);
+  const edit = `<button id="lineup-edit" type="button" class="button ${lineupEditing ? "secondary" : "accent"}"
+    data-command="edit-lineup" aria-expanded="${lineupEditing}" aria-controls="lineup-content">
+    ${lineupEditing ? "Volver al campo" : "Editar plantilla"}
+  </button>`;
+
+  return `${pageHead("Alineación", h(me().team), edit)}
+    <dl class="lineup-stats" aria-label="Datos de la alineación">
+      <div><dt>Monitores</dt><dd>${members.length}${locked ? "" : ` / ${capacity}`}</dd></div>
+      <div><dt>Valor del equipo</dt><dd>${euro.format(marketValueDecimal(value))}</dd></div>
+      <div><dt>${round ? `Puntos semana ${round.id}` : "Puntos totales"}</dt>
+        <dd>${round ? (result?.scored ? result.total : "—") : standing?.total ?? 0}</dd></div>
+    </dl>
+    <div id="lineup-content" class="lineup-content">
+      ${lineupEditing ? marketPanel() : `<div class="lineup-toolbar">
+        ${roundSelect("lineup-round", lineupRound, "Plantilla actual")}
+        ${round ? `<div class="round-meta">${roundStatus(round)}${roundDate(round)}</div>`
+          : scoreRound ? `<p class="hint">Puntos individuales · Semana ${scoreRound.id}</p>` : ""}
+      </div>
+      ${lineupPitch(members, capacity, scoreRound)}`}
     </div>`;
 }
 
@@ -314,8 +323,7 @@ function marketResults() {
     (!marketSection || sectionId === marketSection) && searchName(name).includes(query));
   if (!monitors.length) return '<p class="empty" role="status">Ningún monitor coincide con la búsqueda.</p>';
 
-  const scoredWeeks = new Set(state.monitorPoints.map(({ roundId }) => roundId));
-  const week = state.rounds.findLast(({ id }) => scoredWeeks.has(id));
+  const week = lastScoredRound();
   const weekLabel = week ? `Semana ${week.id}` : "Última semana";
   const weekly = new Map();
   const totals = new Map();
@@ -357,18 +365,10 @@ function marketResults() {
     }).join("")}</tbody></table></div>`;
 }
 
-function marketPage() {
-  const manager = me();
+function marketPanel() {
   const full = state.roster.length >= state.rosterSize;
-  const description = localLeague && !manager ? "Elige un mánager en Vista local para hacer fichajes."
-    : "Consulta el valor y los puntos de los monitores de todo el grupo.";
-  const action = manager ? '<a class="button secondary" href="#alineacion" data-route>Ver mi equipo</a>'
-    : state.monitors.length ? `<div class="form-actions">${refreshButton}
-      <a class="button secondary" href="#monitores" data-route>Editar valores</a></div>`
-      : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
   if (!state.sections.some(({ id }) => id === marketSection)) marketSection = 0;
-  return `${pageHead("Mercado", description, action)}
-    <section class="card table-card" aria-label="Mercado de monitores">
+  return `<section class="card table-card" aria-label="Mercado de monitores">
       ${state.monitors.length ? `<div class="market-controls">
         <div class="field"><label for="market-search">Buscar monitor</label>
           <input id="market-search" type="search" value="${h(marketQuery)}" autocomplete="off">
@@ -379,25 +379,37 @@ function marketPage() {
             ${state.sections.map(({ id, name }) => `<option value="${id}"${choose(id, marketSection)}>${h(name)}</option>`).join("")}
           </select>
         </div>
-        ${manager ? `<p class="market-places"><span class="pill ${full ? "" : "open"}">${state.roster.length} de ${state.rosterSize} plazas ocupadas</span>
+        ${me() ? `<p class="market-places"><span class="pill ${full ? "" : "open"}">${state.roster.length} de ${state.rosterSize} plazas ocupadas</span>
           ${full ? '<small id="market-full">Libera una plaza para fichar.</small>' : ""}</p>` : ""}
       </div><div id="market-results">${marketResults()}</div>`
       : '<p class="empty">Los monitores aparecerán aquí cuando se registren.</p>'}
     </section>`;
 }
 
+function marketPage() {
+  const action = state.monitors.length ? `<div class="form-actions">${refreshButton}
+    <a class="button secondary" href="#monitores" data-route>Editar valores</a></div>`
+    : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
+  return pageHead("Mercado", "Consulta el valor y los puntos de los monitores de todo el grupo.", action) + marketPanel();
+}
+
 function standingsPage() {
+  const totalColumn = '<th scope="col" class="num">Total</th>';
+  const user = Boolean(me());
   return `${pageHead("Clasificación", "Cada semana suma los puntos de los monitores de la plantilla. En empate, los equipos comparten puesto.", refreshButton)}
     <section class="card table-card">${state.standings.length ? `<div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de clasificación">
-      <table><thead><tr><th scope="col">Puesto</th><th scope="col">Equipo</th>
+      <table><thead><tr><th scope="col">Puesto</th><th scope="col">Equipo</th>${user ? totalColumn : ""}
         ${state.rounds.map(({ id }) => `<th scope="col" class="num" aria-label="Semana ${id}">S${id}</th>`).join("")}
-        <th scope="col" class="num">Total</th>
-      </tr></thead><tbody>${state.standings.map((row) => `<tr${row.id === me()?.id ? ' class="active-row"' : ""}>
-        <td class="rank">${hasResults(row) ? row.rank : "—"}</td>
-        <th scope="row">${personLine(row.team, row.alias)}</th>
-        ${row.results.map((result) => `<td class="num">${result.scored ? result.total : "—"}</td>`).join("")}
-        <td class="num points">${row.total}</td>
-      </tr>`).join("")}</tbody></table>
+        ${user ? "" : totalColumn}
+      </tr></thead><tbody>${state.standings.map((row) => {
+        const total = `<td class="num points">${row.total}</td>`;
+        return `<tr${row.id === me()?.id ? ' class="active-row"' : ""}>
+          <td class="rank">${hasResults(row) ? row.rank : "—"}</td>
+          <th scope="row">${personLine(row.team, row.alias)}</th>${user ? total : ""}
+          ${row.results.map((result) => `<td class="num">${result.scored ? result.total : "—"}</td>`).join("")}
+          ${user ? "" : total}
+        </tr>`;
+      }).join("")}</tbody></table>
     </div>` : '<p class="empty">Los equipos aparecerán cuando se inscriban sus mánagers.</p>'}</section>`;
 }
 
@@ -406,7 +418,6 @@ function roundsPage() {
     <div class="round-grid">${state.rounds.map((round) => `<article class="card round-card">
       <div class="card-head"><h2>Semana ${round.id}</h2>${roundStatus(round)}</div>
       ${roundDate(round)}${round.challenge ? `<p>${h(round.challenge)}</p>` : ""}
-      ${isAdmin() ? "" : `<a href="#alineacion" data-route data-round="${round.id}" class="button secondary">Ver mi equipo</a>`}
     </article>`).join("")}</div>
     <section class="card">
       <div class="card-head"><h2>Cómo se puntúa</h2></div>
@@ -637,17 +648,18 @@ function render() {
     return;
   }
   const requested = location.hash.slice(1);
-  if (Object.hasOwn(routes, requested)) currentRoute = requested;
-  if ((currentRoute === "gestion" && !canReview()) || (currentRoute === "alineacion" && isAdmin())) {
-    currentRoute = "inicio";
-  }
+  const target = requested === "main" ? currentRoute : requested;
+  const tabs = navigation();
+  currentRoute = tabs.includes(target) || (target === "gestion" && canReview()) ? target : tabs[0];
+  if (currentRoute !== "alineacion") lineupEditing = false;
   const pages = {
     inicio: home, alineacion: lineupPage, mercado: marketPage, clasificacion: standingsPage, jornadas: roundsPage,
     monitores: monitorRegisterPage, gestion: managementPage,
   };
   const storageWarning = state.storageWarning ? `<p class="local-warning" role="status">${h(state.storageWarning)}</p>` : "";
-  app.innerHTML = `${topBar()}<main class="workspace" id="main" tabindex="-1">${storageWarning}${pages[currentRoute]()}</main>
-    <footer class="footer">Grupo Scout Ciudad del Sol 108</footer>`;
+  const content = `${topBar()}<main class="workspace" id="main" tabindex="-1">${storageWarning}${pages[currentRoute]()}</main>`;
+  app.innerHTML = isAdmin() ? `${content}<footer class="footer">Grupo Scout Ciudad del Sol 108</footer>`
+    : `<div class="manager-view">${content}</div>`;
 }
 
 async function start() {
@@ -659,24 +671,23 @@ async function start() {
   }
 }
 
-function resetRoute(route = "inicio") {
-  currentRoute = route;
+function resetRoute() {
+  currentRoute = navigation()[0];
   authMode = "login";
   manageTab = "rounds";
-  lineupRound = setupRound = reviewRound = reviewMonitor = undefined;
+  setupRound = reviewRound = reviewMonitor = undefined;
+  lineupRound = 0;
+  lineupEditing = false;
   reviewSection = 0;
-  if (route !== "mercado") {
-    marketQuery = "";
-    marketSection = 0;
-  }
-  history.replaceState(null, "", `#${route}`);
+  marketQuery = "";
+  marketSection = 0;
+  history.replaceState(null, "", `#${currentRoute}`);
 }
 
 const actions = {
   login: ({ alias, password }) => ["/api/login", "POST", { alias, password }],
   "admin-login": ({ password }) => ["/api/login", "POST", { role: "admin", password }],
   register: (values) => ["/api/register", "POST", { ...values, sectionId: Number(values.sectionId) }, "Equipo inscrito."],
-  roster: (_, form, data) => ["/api/roster", "PUT", { monitorIds: data.getAll("monitor").map(Number) }, "Plantilla guardada."],
   "market-transfer": (_, { dataset }) => ["/api/roster", "PATCH",
     { monitorId: Number(dataset.id), action: dataset.move }, dataset.move === "sign" ? "Monitor fichado." : "Plaza liberada."],
   round: (values, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", values, "Calendario guardado."],
@@ -741,7 +752,7 @@ async function saveForm(form, button) {
     if (formName === "edit-monitor-value" && currentRoute === "monitores") {
       document.getElementById(`edit-monitor-${form.dataset.id}`)?.focus({ preventScroll: true });
     }
-    if (formName === "market-transfer" && currentRoute === "mercado") {
+    if (formName === "market-transfer" && currentRoute === "alineacion") {
       const next = document.getElementById(`market-action-${form.dataset.id}`);
       (next?.disabled ? document.getElementById("market-search") : next)?.focus({ preventScroll: true });
     }
@@ -796,7 +807,7 @@ app.addEventListener("change", async (event) => {
     try {
       localLeague.viewAs(control.value ? Number(control.value) : null);
       await reload();
-      resetRoute(currentRoute === "mercado" ? "mercado" : "inicio");
+      resetRoute();
       render();
       document.getElementById("local-view")?.focus({ preventScroll: true });
     } catch (error) {
@@ -804,11 +815,6 @@ app.addEventListener("change", async (event) => {
     } finally {
       saving = control.disabled = false;
     }
-    return;
-  }
-  if (control.name === "monitor") {
-    const count = control.form.querySelectorAll('input[name="monitor"]:checked').length;
-    control.form.querySelector("[data-roster-count]").textContent = `${count} de ${state.rosterSize}`;
     return;
   }
   if (control.name === "category") {
@@ -854,7 +860,6 @@ app.addEventListener("click", async (event) => {
     return;
   }
   if (control.hasAttribute("data-route")) {
-    if (control.dataset.round) lineupRound = Number(control.dataset.round);
     if (control.dataset.panel) manageTab = control.dataset.panel;
     if (control.getAttribute("href") === location.hash) render();
   } else if (control.dataset.auth) {
@@ -865,6 +870,11 @@ app.addEventListener("click", async (event) => {
     manageTab = control.dataset.manage;
     render();
     app.querySelector('[data-manage][aria-pressed="true"]')?.focus({ preventScroll: true });
+  } else if (control.dataset.command === "edit-lineup" && !saving) {
+    lineupEditing = !lineupEditing;
+    if (lineupEditing) lineupRound = 0;
+    render();
+    document.getElementById("lineup-edit")?.focus({ preventScroll: true });
   } else if (control.dataset.command && !saving) {
     saving = control.disabled = true;
     try {

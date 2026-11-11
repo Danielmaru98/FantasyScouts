@@ -168,7 +168,7 @@ test("el registro avisa si el navegador acepta el guardado pero descarta los cam
   assert.equal((await getState(createOfflineLeague({ storage }))).monitors.length, 0);
 });
 
-test("index.html arranca sin red y registra un monitor por clic sin enviar el formulario", async () => {
+test("index.html arranca sin red y permite registrar y alinear monitores por clic", async () => {
   const [html, pagesHtml] = await Promise.all([
     readFile(new URL("../index.html", import.meta.url), "utf8"),
     readFile(new URL("../docs/index.html", import.meta.url), "utf8"),
@@ -190,6 +190,7 @@ test("index.html arranca sin red y registra un monitor por clic sin enviar el fo
     window: browser,
     navigator: {},
     location,
+    history: { replaceState: (_, __, hash) => { location.hash = hash; } },
     FormData: class extends Map {
       constructor(form) { super(Object.entries(form.values)); }
     },
@@ -217,5 +218,25 @@ test("index.html arranca sin red y registra un monitor por clic sin enviar el fo
   assert.match(mount.innerHTML, /1\.250,75\s€/);
   assert.match(mount.innerHTML, /<option value="1" selected>Tropa Jungla<\/option>/);
   assert.equal(notice.textContent, "Monitor registrado.");
+
+  await add(browser.fantasyScoutLocal, "Norte", "Mapas", 1);
+  await listeners.get("change")({ target: { dataset: { select: "local-view" }, value: "1" } });
+  assert.equal(location.hash, "#alineacion");
+  const navigation = mount.innerHTML.match(/<nav [^>]*>([\s\S]+?)<\/nav>/)?.[1];
+  assert.ok(navigation);
+  assert.deepEqual(Array.from(navigation.matchAll(/href="#([^"]+)"/g), ([, route]) => route), ["alineacion", "clasificacion"]);
+  assert.match(mount.innerHTML, /Alineación en el campo/);
+
+  const editLineup = { dataset: { command: "edit-lineup" }, hasAttribute: () => false };
+  await listeners.get("click")({ target: { closest: () => editLineup } });
+  assert.match(mount.innerHTML, /Fichar a Junco/);
+  const sign = {
+    type: "submit",
+    form: { ...form, dataset: { form: "market-transfer", id: "1", move: "sign" }, values: {} },
+  };
+  await listeners.get("click")({ target: { closest: () => sign }, preventDefault() {} });
+  assert.equal(notice.textContent, "Monitor fichado.");
+  await listeners.get("click")({ target: { closest: () => editLineup } });
+  assert.match(mount.innerHTML, /class="pitch-name" title="Junco">Junco/);
   assert.equal(fetched, false);
 });
