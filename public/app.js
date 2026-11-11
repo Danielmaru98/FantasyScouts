@@ -206,6 +206,10 @@ function home() {
     : needsTeams ? '<a class="button accent" href="#gestion" data-route data-panel="players">Inscribir equipos</a>'
       : isAdmin() ? '<a class="button accent" href="#gestion" data-route data-panel="rounds">Gestionar semana</a>'
         : `<a class="button accent" href="#alineacion" data-route data-round="${round.id}">Ver mi equipo</a>`;
+  const classification = `<section class="card">
+    <div class="card-head"><h2>Clasificación</h2><a href="#clasificacion" data-route class="link-button">Ver tabla</a></div>
+    ${topFive()}
+  </section>`;
   return `<section class="hero"><div class="hero-content">
     <div class="hero-meta">${preparing ? '<span class="eyebrow">FantasyScout 108</span>' : roundStatus(round)}</div>
     <h1>${title}</h1><p>${h(description)}</p>${action}
@@ -216,13 +220,13 @@ function home() {
       stat("Tu puesto", hasResults(standing) ? standing.rank : "—") + stat("Puntos totales", standing?.total ?? 0) +
       stat(`Puntos semana ${round.id}`, weekly?.scored ? weekly.total : "—")}
   </section>
-  <div class="home-grid">
-    <section class="card"><div class="card-head"><h2>Clasificación</h2><a href="#clasificacion" data-route class="link-button">Ver tabla</a></div>${topFive()}</section>
-    <section class="card"><div class="card-head"><h2>${isAdmin() ? "Monitores por sección" : "Tu plantilla"}</h2>
-      ${isAdmin() ? "" : `<span class="hint">Semana ${round.id}</span>`}</div>
-      ${isAdmin() ? `<ul class="rule-list">${state.sections.map(({ id, name }) => `<li><strong>${h(name)}</strong><span class="pill">${state.monitors.filter(({ sectionId }) => sectionId === id).length}</span></li>`).join("")}</ul>` : rosterSummary(round)}
+  ${isAdmin() ? classification : `<div class="home-grid">
+    ${classification}
+    <section class="card">
+      <div class="card-head"><h2>Tu plantilla</h2><span class="hint">Semana ${round.id}</span></div>
+      ${rosterSummary(round)}
     </section>
-  </div>`;
+  </div>`}`;
 }
 
 function pageHead(title, description, action = "") {
