@@ -239,8 +239,15 @@ export function createApp({ databasePath, adminPassword, inviteCode, secureCooki
 
     if (method === "POST" && path === "/api/admin/monitors") {
       requireActor(actor, "admin");
-      store.addMonitor(field(body.name, "el nombre del monitor", 60), positiveId(body.sectionId));
+      store.addMonitor(field(body.name, "el nombre del monitor", 60), positiveId(body.sectionId), body.marketValueCents);
       return replyJson(res, 201, { ok: true });
+    }
+
+    const monitor = /^\/api\/admin\/monitors\/(\d+)$/.exec(path);
+    if (method === "PATCH" && monitor) {
+      requireActor(actor, "admin");
+      store.setMonitorMarketValue(positiveId(Number(monitor[1])), body.marketValueCents);
+      return replyJson(res, 200, { ok: true });
     }
 
     if (method === "PATCH" && path === "/api/admin/settings") {

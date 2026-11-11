@@ -3,7 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import vm from "node:vm";
 import { createOfflineLeague } from "../src/offline.mjs";
-import { STARTER_CHALLENGES } from "../src/league.mjs";
+import { DEFAULT_MARKET_VALUE_CENTS, STARTER_CHALLENGES } from "../src/league.mjs";
 
 function memoryStorage() {
   const values = new Map();
@@ -16,7 +16,10 @@ function memoryStorage() {
 const getState = (league) => league.request("/api/state", "GET");
 const add = (league, alias, team, sectionId) =>
   league.request("/api/admin/players", "POST", { alias, team, sectionId });
-const monitor = (league, name, sectionId) => league.request("/api/admin/monitors", "POST", { name, sectionId });
+const monitor = (league, name, sectionId, marketValueCents) =>
+  league.request("/api/admin/monitors", "POST", { name, sectionId, marketValueCents });
+const setValue = (league, id, marketValueCents) =>
+  league.request(`/api/admin/monitors/${id}`, "PATCH", { marketValueCents });
 const phase = (league, action, round = 1) => league.request(`/api/admin/rounds/${round}`, "PATCH", { action });
 const score = (league, id, categories, round = 1) => league.request(`/api/rounds/${round}/scores/${id}`, "PUT", { categories });
 const roster = (league, monitorIds) => league.request("/api/roster", "PUT", { monitorIds });
@@ -93,6 +96,7 @@ test("las copias de la versión anterior conservan los monitores, fichajes y pun
   const league = createOfflineLeague({ storage });
   const view = await getState(league);
   assert.deepEqual(view.monitors.map(({ name }) => name), ["Norte", "Río", "Pino"]);
+  assert.ok(view.monitors.every(({ marketValueCents }) => marketValueCents === DEFAULT_MARKET_VALUE_CENTS));
   assert.equal(view.standings[0].total, 5);
   assert.equal(view.monitorPoints.find(({ monitorId }) => monitorId === 1).points, 8);
   league.viewAs(1);
@@ -104,11 +108,13 @@ test("una copia permite trasladar la liga y los errores de importación conserva
   const unavailable = { getItem: () => null, setItem: () => { throw new Error("quota"); } };
   const local = createOfflineLeague({ storage: unavailable });
   await add(local, "Norte", "Mapas", 1);
+  await monitor(local, "Junco", 1, 148_250);
   assert.match((await getState(local)).storageWarning, /Descarga una copia/);
 
   const restored = createOfflineLeague({ storage: memoryStorage() });
   await restored.importBackup(local.exportBackup());
   assert.equal((await getState(restored)).players[0].team, "Mapas");
+  assert.equal((await getState(restored)).monitors[0].marketValueCents, 148_250);
   const invalid = JSON.parse(restored.exportBackup());
   invalid.players[0].sectionId = 999;
   await assert.rejects(restored.importBackup(JSON.stringify(invalid)), /copia válida/);
@@ -120,13 +126,16 @@ test("el registro de monitores persiste y las copias se importan sin duplicar re
   const source = createOfflineLeague({ storage });
   await source.request("/api/admin/sections", "POST", { name: "Manada" });
   await monitor(source, "Senda", 1);
-  await monitor(source, "Olmo", 2);
+  await monitor(source, "Olmo", 2, 155_050);
+  await assert.rejects(setValue(source, 1, -5), /valor en euros/);
+  await setValue(source, 1, 223_450);
 
   const reopened = createOfflineLeague({ storage });
   assert.deepEqual((await getState(reopened)).monitors.map(({ name }) => name), ["Senda", "Olmo"]);
   const register = reopened.exportMonitorRegister();
   assert.deepEqual(JSON.parse(register).monitors, [
-    { name: "Senda", section: "Tropa Jungla" }, { name: "Olmo", section: "Manada" },
+    { name: "Senda", section: "Tropa Jungla", marketValueCents: 223_450 },
+    { name: "Olmo", section: "Manada", marketValueCents: 155_050 },
   ]);
 
   const target = createOfflineLeague({ storage: memoryStorage() });
@@ -134,13 +143,15 @@ test("el registro de monitores persiste y las copias se importan sin duplicar re
   await monitor(target, "SENDA", 1);
   target.viewAs(1);
   await roster(target, [1]);
+  await assert.rejects(setValue(target, 1, 350_000), { status: 403 });
   target.viewAs(null);
   assert.equal(await target.importMonitorRegister(register), 1);
   assert.equal(await target.importMonitorRegister(reopened.exportBackup()), 0);
   await assert.rejects(target.importMonitorRegister("no es un JSON"), /copia válida/);
   const view = await getState(target);
   assert.deepEqual(view.monitors, [
-    { id: 1, name: "SENDA", sectionId: 1 }, { id: 2, name: "Olmo", sectionId: 2 },
+    { id: 1, name: "SENDA", sectionId: 1, marketValueCents: DEFAULT_MARKET_VALUE_CENTS },
+    { id: 2, name: "Olmo", sectionId: 2, marketValueCents: 155_050 },
   ]);
   assert.equal(view.sections[1].name, "Manada");
   target.viewAs(1);
@@ -190,7 +201,7 @@ test("index.html arranca sin red y registra un monitor por clic sin enviar el fo
   const error = {};
   const form = {
     dataset: { form: "add-monitor" },
-    values: { name: "Junco", sectionId: "1" },
+    values: { name: "Junco", sectionId: "1", marketValue: "1.250,75" },
     reportValidity: () => true,
     querySelector: () => error,
   };
@@ -199,6 +210,7 @@ test("index.html arranca sin red y registra un monitor por clic sin enviar el fo
   await listeners.get("click")({ target: { closest: () => button }, preventDefault: () => { prevented = true; } });
   assert.equal(prevented, true);
   assert.match(mount.innerHTML, /<th scope="row">Junco<\/th>/);
+  assert.match(mount.innerHTML, /1\.250,75\s€/);
   assert.match(mount.innerHTML, /<option value="1" selected>Tropa Jungla<\/option>/);
   assert.equal(notice.textContent, "Monitor registrado.");
   assert.equal(fetched, false);

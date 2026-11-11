@@ -14,6 +14,8 @@ La liga se guarda en el navegador desde el que abres el archivo. **Gestión → 
 
 En **Monitores**, puedes descargar el registro por separado. **Importar registro** añade los monitores que falten a partir de ese archivo o de una copia completa de FantasyScout.
 
+El **Mercado** muestra el valor en euros de cada monitor. Los monitores parten de 1.000 € y Organización puede asignar otro importe al registrarlos o pulsar **Editar valor** en el registro. Las copias locales incluyen los valores.
+
 Puedes importar una copia del HTML anterior. Los participantes de aquella liga pasan también al registro de monitores, los fichajes elegidos forman la plantilla histórica y los puntos individuales se conservan.
 
 ## Arranque con servidor

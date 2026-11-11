@@ -1,6 +1,7 @@
 import {
-  contributionMask, CONTRIBUTIONS, convertLegacyGame, DEFAULT_ROSTER_SIZE, leagueView, MAX_ROSTER_SIZE,
-  nextRoundStatus, rosterAfterTransfer, rosterProblem, STARTER_CHALLENGES, validRosterSize,
+  contributionMask, CONTRIBUTIONS, convertLegacyGame, DEFAULT_MARKET_VALUE_CENTS, DEFAULT_ROSTER_SIZE,
+  leagueView, MARKET_VALUE_ERROR, MAX_ROSTER_SIZE, nextRoundStatus, rosterAfterTransfer, rosterProblem,
+  STARTER_CHALLENGES, validMarketValue, validRosterSize,
 } from "./league.mjs";
 
 const LOCAL_KEY = "fantasyscout-108-local-v1";
@@ -80,8 +81,8 @@ function normalizeCopy(serialized) {
   const rounds = data.rounds.map(({ id, challenge, date, status }) => ({
     id, challenge: localText(challenge, "el reto", 280, true), date: localDate(date), status,
   })).sort((a, b) => a.id - b.id);
-  const monitors = data.monitors.map(({ id, name, sectionId }) => ({
-    id, name: localText(name, "el nombre del monitor", 60), sectionId,
+  const monitors = data.monitors.map(({ id, name, sectionId, marketValueCents = DEFAULT_MARKET_VALUE_CENTS }) => ({
+    id, name: localText(name, "el nombre del monitor", 60), sectionId, marketValueCents,
   }));
   const rosterSize = data.rosterSize;
   const rosters = data.rosters.map(({ playerId, monitorIds }) => ({ playerId, monitorIds }));
@@ -100,7 +101,8 @@ function normalizeCopy(serialized) {
       !players.every(({ id, sectionId }) => validLocalId(id) && sectionById.has(sectionId)) ||
       monitorById.size !== monitors.length ||
       !hasUnique(monitors, ({ name, sectionId }) => `${sectionId}/${localKey(name)}`) ||
-      !monitors.every(({ id, sectionId }) => validLocalId(id) && sectionById.has(sectionId)) ||
+      !monitors.every(({ id, sectionId, marketValueCents }) =>
+        validLocalId(id) && sectionById.has(sectionId) && validMarketValue(marketValueCents)) ||
       !validRosterSize(rosterSize) || !rounds.length ||
       !rounds.every(({ id, status }, index) => id === index + 1 && LOCAL_STATUSES.has(status))) {
     throw invalid();
@@ -129,17 +131,18 @@ function addLocalId(rows) {
   return id;
 }
 
-function addMonitorTo(snapshot, name, sectionId) {
+function addMonitorTo(snapshot, name, sectionId, marketValueCents) {
   if (snapshot.monitors.some((monitor) => monitor.sectionId === sectionId && localKey(monitor.name) === localKey(name))) {
     return false;
   }
-  snapshot.monitors.push({ id: addLocalId(snapshot.monitors), name, sectionId });
+  snapshot.monitors.push({ id: addLocalId(snapshot.monitors), name, sectionId, marketValueCents });
   return true;
 }
 
 function monitorRegisterRows(snapshot) {
   const sections = new Map(snapshot.sections.map(({ id, name }) => [id, name]));
-  return snapshot.monitors.map(({ name, sectionId }) => ({ name, section: sections.get(sectionId) }));
+  return snapshot.monitors.map(({ name, sectionId, marketValueCents }) =>
+    ({ name, section: sections.get(sectionId), marketValueCents }));
 }
 
 function readMonitorRegister(serialized) {
@@ -155,10 +158,14 @@ function readMonitorRegister(serialized) {
       !Array.isArray(copy.monitors) || copy.monitors.some((row) => !row || typeof row !== "object")) {
     throw invalid();
   }
-  return copy.monitors.map(({ name, section }) => ({
-    name: localText(name, "el nombre del monitor", 60),
-    section: localText(section, "el nombre de la sección", 60),
-  }));
+  return copy.monitors.map(({ name, section, marketValueCents = DEFAULT_MARKET_VALUE_CENTS }) => {
+    if (!validMarketValue(marketValueCents)) throw invalid();
+    return {
+      name: localText(name, "el nombre del monitor", 60),
+      section: localText(section, "el nombre de la sección", 60),
+      marketValueCents,
+    };
+  });
 }
 
 export function createOfflineLeague({ storage = null, locks = null } = {}) {
@@ -256,11 +263,19 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
       }
       if (route[1] === "monitors" && method === "POST") {
         const name = localText(body.name, "el nombre del monitor", 60);
-        const sectionId = body.sectionId;
+        const { sectionId, marketValueCents = DEFAULT_MARKET_VALUE_CENTS } = body;
         if (!lookupSection(sectionId)) throw localError("Elige una sección de la liga.");
-        if (!addMonitorTo(draft, name, sectionId)) {
+        if (!validMarketValue(marketValueCents)) throw localError(MARKET_VALUE_ERROR);
+        if (!addMonitorTo(draft, name, sectionId, marketValueCents)) {
           throw localError("Ese monitor ya está registrado en esta sección.", 409);
         }
+        return;
+      }
+      if (route[1] === "monitors" && method === "PATCH") {
+        const monitor = draft.monitors.find((entry) => entry.id === id);
+        if (!monitor) throw localError("El monitor no existe.", 404);
+        if (!validMarketValue(body.marketValueCents)) throw localError(MARKET_VALUE_ERROR);
+        monitor.marketValueCents = body.marketValueCents;
         return;
       }
       if (route[1] === "settings" && method === "PATCH") {
@@ -367,7 +382,7 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
         if (actorFor(draft)) throw localError("Selecciona la vista Organización para importar el registro.", 403);
         const sections = new Map(draft.sections.map(({ name, id }) => [localKey(name), id]));
         let added = 0;
-        for (const { name, section } of entries) {
+        for (const { name, section, marketValueCents } of entries) {
           const sectionKey = localKey(section);
           let sectionId = sections.get(sectionKey);
           if (!sectionId) {
@@ -375,7 +390,7 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
             draft.sections.push({ id: sectionId, name: section, reviewerId: null });
             sections.set(sectionKey, sectionId);
           }
-          if (addMonitorTo(draft, name, sectionId)) added++;
+          if (addMonitorTo(draft, name, sectionId, marketValueCents)) added++;
         }
         if (added) write(draft);
         return added;

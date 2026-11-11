@@ -2,8 +2,9 @@ import { mkdirSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import {
-  convertLegacyGame, DEFAULT_ROSTER_SIZE, leagueView, MAX_ROSTER_SIZE,
-  nextRoundStatus, rosterAfterTransfer, rosterProblem, STARTER_CHALLENGES, validRosterSize,
+  convertLegacyGame, DEFAULT_MARKET_VALUE_CENTS, DEFAULT_ROSTER_SIZE, leagueView, MARKET_VALUE_ERROR,
+  MAX_ROSTER_SIZE, nextRoundStatus, rosterAfterTransfer, rosterProblem, STARTER_CHALLENGES,
+  validMarketValue, validRosterSize,
 } from "./league.mjs";
 
 export class RequestError extends Error {
@@ -17,7 +18,7 @@ const keyOf = (value) => value.normalize("NFKC").toLocaleLowerCase("es");
 const PLAYER_FIELDS = "id, alias, team, section_id AS sectionId";
 const ROUND_FIELDS = "id, challenge, date, status";
 const SECTION_FIELDS = "id, name, reviewer_id AS reviewerId";
-const MONITOR_FIELDS = "id, name, section_id AS sectionId";
+const MONITOR_FIELDS = "id, name, section_id AS sectionId, market_value_cents AS marketValueCents";
 
 const SCHEMA = `
   CREATE TABLE IF NOT EXISTS sections (
@@ -103,6 +104,7 @@ export class LeagueStore {
       this.db.prepare("INSERT OR IGNORE INTO roster_settings (id, roster_size) VALUES (1, ?)")
         .run(DEFAULT_ROSTER_SIZE);
       this.upgradeLegacyGame();
+      this.upgradeMonitorMarketValues();
     });
   }
 
@@ -135,6 +137,15 @@ export class LeagueStore {
       for (const { roundId, monitorId, mask, note } of legacy.scores) score.run(roundId, monitorId, mask, note);
     }
     this.db.exec("PRAGMA user_version = 2");
+  }
+
+  upgradeMonitorMarketValues() {
+    if (this.db.prepare("PRAGMA user_version").get().user_version >= 3) return;
+    this.db.exec(`
+      ALTER TABLE monitors ADD COLUMN market_value_cents INTEGER NOT NULL
+        DEFAULT ${DEFAULT_MARKET_VALUE_CENTS} CHECK (market_value_cents BETWEEN 0 AND ${Number.MAX_SAFE_INTEGER});
+      PRAGMA user_version = 3;
+    `);
   }
 
   close() {
@@ -234,14 +245,23 @@ export class LeagueStore {
     });
   }
 
-  addMonitor(name, sectionId) {
+  addMonitor(name, sectionId, marketValueCents = DEFAULT_MARKET_VALUE_CENTS) {
+    if (!validMarketValue(marketValueCents)) throw new RequestError(400, MARKET_VALUE_ERROR);
     this.transaction(() => {
       if (!this.section(sectionId)) throw new RequestError(400, "Elige una sección de la liga.");
       if (this.db.prepare("SELECT id FROM monitors WHERE section_id = ? AND name_key = ?").get(sectionId, keyOf(name))) {
         throw new RequestError(409, "Ese monitor ya está registrado en esta sección.");
       }
-      this.db.prepare("INSERT INTO monitors (name, name_key, section_id) VALUES (?, ?, ?)").run(name, keyOf(name), sectionId);
+      this.db.prepare("INSERT INTO monitors (name, name_key, section_id, market_value_cents) VALUES (?, ?, ?, ?)")
+        .run(name, keyOf(name), sectionId, marketValueCents);
     });
+  }
+
+  setMonitorMarketValue(id, marketValueCents) {
+    if (!validMarketValue(marketValueCents)) throw new RequestError(400, MARKET_VALUE_ERROR);
+    const { changes } = this.db.prepare("UPDATE monitors SET market_value_cents = ? WHERE id = ?")
+      .run(marketValueCents, id);
+    if (!changes) throw new RequestError(404, "El monitor no existe.");
   }
 
   setRosterSize(size) {

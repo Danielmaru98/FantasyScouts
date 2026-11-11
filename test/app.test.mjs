@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import test from "node:test";
+import { DEFAULT_MARKET_VALUE_CENTS } from "../src/league.mjs";
 import { createApp } from "../src/server.mjs";
 import { LeagueStore } from "../src/store.mjs";
 
@@ -64,7 +65,10 @@ test("los equipos comparten monitores y el servidor conserva las plantillas sema
   const roster = (request, monitorIds) => request("/api/roster", "PUT", { monitorIds });
   const transfer = (request, monitorId, action) => request("/api/roster", "PATCH", { monitorId, action });
   const score = (id) => `/api/rounds/1/scores/${id}`;
-  const monitor = (name, sectionId) => admin("/api/admin/monitors", "POST", { name, sectionId });
+  const monitor = (name, sectionId, marketValueCents) =>
+    admin("/api/admin/monitors", "POST", { name, sectionId, marketValueCents });
+  const setValue = (request, id, marketValueCents) =>
+    request(`/api/admin/monitors/${id}`, "PATCH", { marketValueCents });
   const adminLogin = { role: "admin", password: options.adminPassword };
   const register = (request, alias, team, sectionId, inviteCode = options.inviteCode) =>
     request("/api/register", "POST", { alias, team, sectionId, password, inviteCode });
@@ -85,14 +89,21 @@ test("los equipos comparten monitores y el servidor conserva las plantillas sema
   assert.equal((await register(guest, "DANI", "Otro equipo", 2)).status, 409);
 
   assert.equal((await admin("/api/state")).body.monitors.length, 0);
-  assert.equal((await monitor("Alba", 2)).status, 201);
+  assert.equal((await monitor("Alba", 2, 123_456)).status, 201);
   assert.equal((await monitor("Rubén", 1)).status, 201);
   assert.equal((await monitor("Dani", 1)).status, 201);
   assert.equal((await monitor("ALBA", 2)).status, 409);
+  assert.equal((await monitor("Olmo", 1, 42.5)).status, 400);
   const { players, monitors } = (await admin("/api/state")).body;
   const playerId = (alias) => players.find((entry) => entry.alias === alias).id;
   const monitorId = (name) => monitors.find((entry) => entry.name === name).id;
   const chosen = [monitorId("Alba"), monitorId("Rubén")];
+  assert.deepEqual(monitors.map(({ marketValueCents }) => marketValueCents),
+    [123_456, DEFAULT_MARKET_VALUE_CENTS, DEFAULT_MARKET_VALUE_CENTS]);
+  assert.equal((await setValue(manager, chosen[1], 82_025)).status, 403);
+  assert.equal((await setValue(admin, chosen[1], -1)).status, 400);
+  assert.equal((await setValue(admin, 999, 82_025)).status, 404);
+  assert.equal((await setValue(admin, chosen[1], 82_025)).status, 200);
   assert.equal((await manager(adminRound, "PATCH", { action: "open" })).status, 403);
   assert.equal((await roster(manager, [999])).status, 400);
   assert.equal((await roster(manager, [chosen[0], chosen[0]])).status, 400);
@@ -150,6 +161,8 @@ test("los equipos comparten monitores y el servidor conserva las plantillas sema
   assert.equal(reloaded.rounds[0].challenge, "Un juego para compartir.");
   assert.equal(reloaded.rounds.at(-1).id, 5);
   assert.equal(reloaded.rosterSize, 2);
+  assert.deepEqual(reloaded.monitors.map(({ marketValueCents }) => marketValueCents),
+    [123_456, 82_025, DEFAULT_MARKET_VALUE_CENTS]);
   assert.equal(reloaded.standings[0].total, 6);
   assert.deepEqual(reloaded.roster, [monitorId("Dani")]);
   assert.deepEqual(reloaded.weeklyRosters[0].monitorIds, chosen);
@@ -185,6 +198,8 @@ test("SQLite migra los fichajes y los puntos individuales de la liga anterior un
     try {
       const migrated = store.stateFor({ playerId: 1, isAdmin: 0 });
       assert.deepEqual(migrated.monitors.map(({ name }) => name), ["Norte", "Este", "Sur"]);
+      assert.equal(migrated.monitors[0].marketValueCents, restart ? 215_000 : DEFAULT_MARKET_VALUE_CENTS);
+      if (!restart) store.setMonitorMarketValue(1, 215_000);
       assert.deepEqual(migrated.roster, [2, 3]);
       assert.equal(migrated.standings[0].total, 5);
       assert.equal(migrated.monitorPoints.find(({ monitorId }) => monitorId === 1).points, 8);

@@ -2,6 +2,9 @@ const app = document.querySelector("#app");
 const notice = document.querySelector("#notice");
 const localLeague = window.fantasyScoutLocal ?? null;
 const dates = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Madrid" });
+const euro = new Intl.NumberFormat("es-ES", {
+  style: "currency", currency: "EUR", useGrouping: "always", trailingZeroDisplay: "stripIfInteger",
+});
 const labels = { planned: "Programada", open: "Plantillas abiertas", scoring: "En puntuación", closed: "Cerrada" };
 const routes = { inicio: "Inicio", alineacion: "Mi equipo", mercado: "Mercado", clasificacion: "Clasificación", jornadas: "Semanas", monitores: "Monitores", gestion: "Gestión" };
 const transition = {
@@ -77,6 +80,29 @@ async function reload() {
 function sectionOptions(selectedId) {
   return '<option value="">Elige una sección</option>' + state.sections.map(({ id, name }) =>
     `<option value="${id}"${choose(id, selectedId)}>${h(name)}</option>`).join("");
+}
+
+function marketValueDecimal(cents) {
+  const digits = String(cents).padStart(3, "0");
+  return `${digits.slice(0, -2)}.${digits.slice(-2)}`;
+}
+
+function marketValueField(id, cents) {
+  const value = marketValueDecimal(cents).replace(/\.00$/, "").replace(".", ",");
+  return `<div class="field"><label for="${id}">Valor de mercado (€)</label>
+    <input id="${id}" name="marketValue" inputmode="decimal" value="${value}" autocomplete="off" required>
+  </div>`;
+}
+
+function parseMarketValue(euros) {
+  const text = euros.trim();
+  const amount = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(text) ? text.replaceAll(".", "") : text;
+  const parts = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(amount);
+  const cents = parts && Number(parts[1] + (parts[2] ?? "").padEnd(2, "0"));
+  if (!Number.isSafeInteger(cents)) {
+    throw new Error("Introduce un valor en euros igual o superior a cero, con hasta dos decimales.");
+  }
+  return cents;
 }
 
 function brand(link = true) {
@@ -304,14 +330,16 @@ function marketResults() {
 
   return `<div class="table-wrap" tabindex="0" role="region" aria-label="Monitores del mercado">
     <table class="market-table"><thead><tr><th scope="col">Monitor</th>
+      <th scope="col" class="num">Valor</th>
       <th scope="col" class="num">${week ? `Semana ${week.id}` : "Última semana"}</th>
       <th scope="col" class="num">Total</th>${showActions ? '<th scope="col" class="num">Plantilla</th>' : ""}
-    </tr></thead><tbody>${monitors.map(({ id, name, sectionId }) => {
+    </tr></thead><tbody>${monitors.map(({ id, name, sectionId, marketValueCents }) => {
       const points = weekly.get(id) ?? (week?.status === "closed" ? 0 : undefined);
       const signed = roster.has(id);
       const label = signed ? "Liberar" : "Fichar";
       return `<tr${signed ? ' class="active-row"' : ""}>
         <th scope="row">${personLine(name, sectionName(sectionId))}</th>
+        <td class="num market-value">${euro.format(marketValueDecimal(marketValueCents))}</td>
         <td class="num">${points === undefined ? "—" : `${points} pt`}</td>
         <td class="num points">${total(id)} pt</td>
         ${showActions ? `<td class="market-action">
@@ -328,10 +356,12 @@ function marketResults() {
 function marketPage() {
   const manager = me();
   const full = state.roster.length >= state.rosterSize;
-  const description = manager ? "Consulta los puntos y ficha monitores de cualquier sección."
-    : localLeague ? "Elige un mánager en Vista local para hacer fichajes." : "Consulta los puntos de los monitores de todo el grupo.";
+  const description = localLeague && !manager ? "Elige un mánager en Vista local para hacer fichajes."
+    : "Consulta el valor y los puntos de los monitores de todo el grupo.";
   const action = manager ? '<a class="button secondary" href="#alineacion" data-route>Ver mi equipo</a>'
-    : state.monitors.length ? refreshButton : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
+    : state.monitors.length ? `<div class="form-actions">${refreshButton}
+      <a class="button secondary" href="#monitores" data-route>Editar valores</a></div>`
+      : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
   if (!state.sections.some(({ id }) => id === marketSection)) marketSection = 0;
   return `${pageHead("Mercado", description, action)}
     <section class="card table-card" aria-label="Mercado de monitores">
@@ -443,7 +473,8 @@ function manageSections() {
 
 function monitorRegisterPage() {
   const monitors = [...state.monitors].sort((a, b) => a.name.localeCompare(b.name, "es") || a.sectionId - b.sectionId);
-  const canSaveCopy = localLeague && isAdmin();
+  const organization = isAdmin();
+  const canSaveCopy = localLeague && organization;
   const defaultSection = state.sections.length === 1 ? state.sections[0].id : undefined;
   const description = localLeague && !isAdmin()
     ? "En Vista local, elige Organización para registrar un monitor."
@@ -452,19 +483,30 @@ function monitorRegisterPage() {
     ? '<button class="button secondary" type="button" data-command="export-monitors">Descargar registro</button>' : "";
   const list = `<section class="card table-card">
     ${monitors.length ? `<div class="table-wrap"><table aria-label="Registro de monitores">
-      <thead><tr><th scope="col">Nombre</th><th scope="col">Sección</th></tr></thead>
-      <tbody>${monitors.map(({ name, sectionId }) =>
-        `<tr><th scope="row">${h(name)}</th><td>${h(sectionName(sectionId))}</td></tr>`).join("")}</tbody>
+      <thead><tr><th scope="col">Nombre</th><th scope="col">Sección</th><th scope="col" class="num">Valor de mercado</th></tr></thead>
+      <tbody>${monitors.map(({ id, name, sectionId, marketValueCents }) => `<tr>
+        <th scope="row">${h(name)}</th><td>${h(sectionName(sectionId))}</td>
+        <td class="num"><strong class="market-value">${euro.format(marketValueDecimal(marketValueCents))}</strong>
+          ${organization ? `<details class="monitor-value-editor">
+            <summary id="edit-monitor-${id}" aria-label="Editar valor de ${h(name)}">Editar valor</summary>
+            <form class="form" data-form="edit-monitor-value" data-id="${id}">
+              ${marketValueField(`monitor-value-${id}`, marketValueCents)}
+              ${errorRegion}<button class="button secondary" type="submit">Guardar valor</button>
+            </form>
+          </details>` : ""}
+        </td>
+      </tr>`).join("")}</tbody>
     </table></div>` : '<p class="empty">El registro está vacío.</p>'}
   </section>`;
   return `${pageHead("Monitores registrados", description, download)}
-  ${isAdmin() ? `<div class="manage-grid">
+  ${organization ? `<div class="manage-grid">
     ${list}
     <section class="card">
       <h2>Registrar monitor</h2>
       <form class="form" data-form="add-monitor">
         <div class="field"><label for="monitor-name">Nombre del monitor</label><input id="monitor-name" name="name" maxlength="60" required></div>
         <div class="field"><label for="monitor-section">Sección del monitor</label><select id="monitor-section" name="sectionId" required>${sectionOptions(defaultSection)}</select></div>
+        ${marketValueField("new-monitor-value", state.defaultMarketValueCents)}
         ${errorRegion}<button class="button primary" type="submit">Registrar monitor</button>
       </form>
     </section>
@@ -637,7 +679,10 @@ const actions = {
   "add-round": (values) => ["/api/admin/rounds", "POST", values, "Semana añadida."],
   phase: (_, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", { action: form.dataset.action }, "Fase actualizada."],
   "add-player": ({ alias, team, sectionId }) => ["/api/admin/players", "POST", { alias, team, sectionId: Number(sectionId) }, "Equipo inscrito."],
-  "add-monitor": ({ name, sectionId }) => ["/api/admin/monitors", "POST", { name, sectionId: Number(sectionId) }, "Monitor registrado."],
+  "add-monitor": ({ name, sectionId, marketValue }) => ["/api/admin/monitors", "POST",
+    { name, sectionId: Number(sectionId), marketValueCents: parseMarketValue(marketValue) }, "Monitor registrado."],
+  "edit-monitor-value": ({ marketValue }, form) => [`/api/admin/monitors/${form.dataset.id}`, "PATCH",
+    { marketValueCents: parseMarketValue(marketValue) }, "Valor de mercado guardado."],
   settings: ({ rosterSize }) => ["/api/admin/settings", "PATCH", { rosterSize: Number(rosterSize) }, "Límite actualizado."],
   "add-section": (values) => ["/api/admin/sections", "POST", values, "Sección añadida."],
   "edit-section": ({ name, reviewerId }, form) => [`/api/admin/sections/${form.dataset.id}`, "PATCH",
@@ -681,10 +726,16 @@ async function saveForm(form, button) {
     }
     await reload();
     if (formName === "add-monitor" && state.storageWarning) message = "Monitor añadido a esta sesión. Descarga el registro para conservarlo.";
+    if (formName === "edit-monitor-value" && state.storageWarning) {
+      message = "Valor actualizado en esta sesión. Descarga el registro para conservarlo.";
+    }
     if (["login", "admin-login", "register"].includes(formName)) resetRoute();
     render();
     if (formName === "add-monitor" && currentRoute === "monitores") {
       document.getElementById("monitor-name")?.focus({ preventScroll: true });
+    }
+    if (formName === "edit-monitor-value" && currentRoute === "monitores") {
+      document.getElementById(`edit-monitor-${form.dataset.id}`)?.focus({ preventScroll: true });
     }
     if (formName === "market-transfer" && currentRoute === "mercado") {
       const next = document.getElementById(`market-action-${form.dataset.id}`);

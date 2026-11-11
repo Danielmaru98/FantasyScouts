@@ -175,10 +175,14 @@ tbody th { font-size: .95rem; font-weight: 700; }
 .market-controls .field { flex: 1 1 10rem; max-width: 23rem; }
 .market-places { display: grid; gap: .2rem; margin-left: auto; }
 .market-places small { font-size: .8rem; color: var(--muted); }
-.market-table thead th:first-child { width: 55%; }
+.market-table thead th:first-child { width: 45%; }
+.market-value { color: var(--forest); font-weight: 800; }
 .market-action { text-align: right; }
 .market-action .button { min-height: 2.35rem; padding: .36rem .75rem; font-size: .85rem; }
 .market-action .form-error { margin-top: .4rem; text-align: left; white-space: normal; }
+.monitor-value-editor { margin-top: .2rem; white-space: normal; text-align: left; }
+.monitor-value-editor summary { width: fit-content; margin-left: auto; cursor: pointer; color: var(--forest); font-size: .8rem; font-weight: 700; }
+.monitor-value-editor form { gap: .55rem; margin-top: .6rem; min-width: 9.5rem; }
 
 .rules-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
 .rule-list li { padding: .65rem 0; border-top: 1px solid #e8efe7; display: grid; grid-template-columns: 1fr auto; gap: .22rem .5rem; align-items: start; }

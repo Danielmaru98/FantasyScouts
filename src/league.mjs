@@ -14,9 +14,15 @@ export const STARTER_CHALLENGES = [
 
 export const DEFAULT_ROSTER_SIZE = 5;
 export const MAX_ROSTER_SIZE = 30;
+export const DEFAULT_MARKET_VALUE_CENTS = 100_000;
+export const MARKET_VALUE_ERROR = "Introduce un valor en euros igual o superior a cero, con hasta dos decimales.";
 
 export function validRosterSize(size) {
   return Number.isInteger(size) && size >= 1 && size <= MAX_ROSTER_SIZE;
+}
+
+export function validMarketValue(cents) {
+  return Number.isSafeInteger(cents) && cents >= 0;
 }
 
 export function contributionMask(categories) {
@@ -140,6 +146,7 @@ export function leagueView(snapshot, actor) {
     sections: actor.isAdmin ? sections : publicSections,
     players,
     monitors,
+    defaultMarketValueCents: DEFAULT_MARKET_VALUE_CENTS,
     rounds,
     rosterSize,
     rosterLimit: MAX_ROSTER_SIZE,
