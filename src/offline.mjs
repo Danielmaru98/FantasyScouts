@@ -169,7 +169,7 @@ function readMonitorRegister(serialized) {
 }
 
 export function createOfflineLeague({ storage = null, locks = null } = {}) {
-  let activeId = null;
+  let activeView = null;
   let data = newLocalLeague();
   let lastStored = null;
   let warning = storage ? "" : UNSAVED;
@@ -211,14 +211,15 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
   }
 
   function actorFor(snapshot) {
-    return snapshot.players.find(({ id }) => id === activeId) ?? null;
+    return snapshot.players.find(({ id }) => id === activeView) ?? null;
   }
 
   function stateFor() {
     const snapshot = read();
     const actor = actorFor(snapshot);
+    const isPreview = activeView === "preview";
     return {
-      ...leagueView(snapshot, { isAdmin: !actor, playerId: actor?.id ?? null }),
+      ...leagueView(snapshot, { isAdmin: !actor && !isPreview, isPreview, playerId: actor?.id ?? null }),
       storageWarning: warning,
     };
   }
@@ -340,16 +341,20 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
   }
 
   async function serializedWrite(work) {
-    if (!locks?.request) return work();
+    function apply() {
+      if (activeView === "preview") throw localError("Elige Organización o un mánager para hacer cambios.", 403);
+      return work();
+    }
+    if (!locks?.request) return apply();
     let acquired = false;
     try {
       return await locks.request(LOCAL_KEY, () => {
         acquired = true;
-        return work();
+        return apply();
       });
     } catch (error) {
       if (acquired) throw error;
-      return work();
+      return apply();
     }
   }
 
@@ -363,9 +368,11 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
       });
       return { ok: true };
     },
-    viewAs(id) {
-      if (id !== null && !read().players.some((player) => player.id === id)) throw localError("Elige un mánager inscrito.");
-      activeId = id;
+    viewAs(view) {
+      if (view !== null && view !== "preview" && !read().players.some(({ id }) => id === view)) {
+        throw localError("Elige un mánager inscrito.");
+      }
+      activeView = view;
     },
     exportBackup() {
       return JSON.stringify(read(), null, 2);
@@ -399,7 +406,7 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
     async importBackup(serialized) {
       const next = normalizeCopy(serialized);
       await serializedWrite(() => write(next));
-      activeId = null;
+      activeView = null;
     },
   };
 }

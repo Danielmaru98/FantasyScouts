@@ -40,6 +40,7 @@ const isAdmin = () => state.viewer?.role === "admin";
 const canReview = () => isAdmin() || Boolean(state.viewer?.reviewIds.length);
 const navigation = () => isAdmin() ? organizationRoutes : managerRoutes;
 const me = () => state.viewer?.player;
+const localView = () => isAdmin() ? "" : me()?.id ?? "preview";
 const sectionName = (id) => state.sections.find((section) => section.id === id)?.name ?? "Sección";
 const monitorFor = (id) => state.monitors.find((monitor) => monitor.id === id);
 const myStanding = () => state.standings.find((entry) => entry.id === me()?.id);
@@ -168,11 +169,15 @@ function roundDate(round) {
 }
 
 function topBar() {
+  const selectedView = localView();
   const account = localLeague ? `<div class="local-account">
     <label for="local-view">Vista local</label>
     <select id="local-view" data-select="local-view">
-      <option value="">Organización</option>
-      ${state.players.map(({ id, alias }) => `<option value="${id}"${choose(id, me()?.id)}>${h(alias)}</option>`).join("")}
+      <option value=""${choose("", selectedView)}>Organización</option>
+      <option value="preview"${choose("preview", selectedView)}>Vista usuario</option>
+      ${state.players.length ? `<optgroup label="Mánagers inscritos">
+        ${state.players.map(({ id, alias }) => `<option value="${id}"${choose(id, selectedView)}>${h(alias)}</option>`).join("")}
+      </optgroup>` : ""}
     </select>
   </div>` : `<div class="account"><span>${isAdmin() ? "Organización" : h(me().alias)}</span>
     <button type="button" class="button secondary" data-command="logout">Salir</button>
@@ -283,20 +288,29 @@ function lineupPitch(members, capacity, scoreRound) {
 }
 
 function lineupPage() {
-  const round = state.rounds.find(({ id }) => id === lineupRound);
+  const player = me();
+  const round = player && state.rounds.find(({ id }) => id === lineupRound);
   const locked = round && isWeekLocked(round);
   const members = (round ? myWeeklyRoster(round) : state.roster).map(monitorFor).filter(Boolean);
   const capacity = locked ? members.length : state.rosterSize;
-  const scoreRound = round ?? lastScoredRound();
+  const scoreRound = player && (round ?? lastScoredRound());
   const standing = myStanding();
   const result = standing?.results.find(({ roundId }) => roundId === round?.id);
   const value = members.reduce((total, { marketValueCents }) => total + BigInt(marketValueCents), 0n);
-  const edit = `<button id="lineup-edit" type="button" class="button ${lineupEditing ? "secondary" : "accent"}"
+  const edit = player ? `<button id="lineup-edit" type="button" class="button ${lineupEditing ? "secondary" : "accent"}"
     data-command="edit-lineup" aria-expanded="${lineupEditing}" aria-controls="lineup-content">
     ${lineupEditing ? "Volver al campo" : "Editar plantilla"}
-  </button>`;
+  </button>` : "";
+  const description = player ? h(player.team) : state.players.length
+    ? "Elige un mánager en Vista local para ver su equipo."
+    : "Inscribe un mánager en Organización → Gestión → Equipos para crear tu plantilla.";
+  const toolbar = player ? `<div class="lineup-toolbar">
+    ${roundSelect("lineup-round", lineupRound, "Plantilla actual")}
+    ${round ? `<div class="round-meta">${roundStatus(round)}${roundDate(round)}</div>`
+      : scoreRound ? `<p class="hint">Puntos individuales · Semana ${scoreRound.id}</p>` : ""}
+  </div>` : "";
 
-  return `${pageHead("Alineación", h(me().team), edit)}
+  return `${pageHead("Alineación", description, edit)}
     <dl class="lineup-stats" aria-label="Datos de la alineación">
       <div><dt>Monitores</dt><dd>${members.length}${locked ? "" : ` / ${capacity}`}</dd></div>
       <div><dt>Valor del equipo</dt><dd>${euro.format(marketValueDecimal(value))}</dd></div>
@@ -304,12 +318,7 @@ function lineupPage() {
         <dd>${round ? (result?.scored ? result.total : "—") : standing?.total ?? 0}</dd></div>
     </dl>
     <div id="lineup-content" class="lineup-content">
-      ${lineupEditing ? marketPanel() : `<div class="lineup-toolbar">
-        ${roundSelect("lineup-round", lineupRound, "Plantilla actual")}
-        ${round ? `<div class="round-meta">${roundStatus(round)}${roundDate(round)}</div>`
-          : scoreRound ? `<p class="hint">Puntos individuales · Semana ${scoreRound.id}</p>` : ""}
-      </div>
-      ${lineupPitch(members, capacity, scoreRound)}`}
+      ${lineupEditing ? marketPanel() : toolbar + lineupPitch(members, capacity, scoreRound)}
     </div>`;
 }
 
@@ -800,12 +809,14 @@ app.addEventListener("change", async (event) => {
   const control = event.target;
   if (control.dataset.select === "local-view" && localLeague) {
     if (saving) {
-      control.value = me()?.id ?? "";
+      control.value = String(localView());
       return;
     }
     saving = control.disabled = true;
     try {
-      localLeague.viewAs(control.value ? Number(control.value) : null);
+      let view = control.value || null;
+      if (view && view !== "preview") view = Number(view);
+      localLeague.viewAs(view);
       await reload();
       resetRoute();
       render();
@@ -870,7 +881,7 @@ app.addEventListener("click", async (event) => {
     manageTab = control.dataset.manage;
     render();
     app.querySelector('[data-manage][aria-pressed="true"]')?.focus({ preventScroll: true });
-  } else if (control.dataset.command === "edit-lineup" && !saving) {
+  } else if (control.dataset.command === "edit-lineup" && me() && !saving) {
     lineupEditing = !lineupEditing;
     if (lineupEditing) lineupRound = 0;
     render();
