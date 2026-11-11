@@ -7,7 +7,7 @@ const LOCAL_KEY = "fantasyscout-108-local-v1";
 const LOCAL_FORMAT = "fantasyscout-108";
 const MONITOR_REGISTER_FORMAT = "fantasyscout-monitores";
 const LOCAL_STATUSES = new Set(["planned", "open", "scoring", "closed"]);
-const UNSAVED = "El navegador limita el guardado local. Descarga una copia desde Monitores o Gestión para conservar esta sesión.";
+const UNSAVED = "El navegador limita el guardado local. Abre el HTML descargado directamente en tu navegador para llevar la liga. Descarga una copia desde Monitores o Gestión para conservar los cambios de esta sesión.";
 const UNREADABLE = "La liga guardada no se pudo leer. Puedes recuperar los datos importando una copia desde Gestión.";
 const localKey = (value) => value.normalize("NFKC").toLocaleLowerCase("es");
 const validLocalId = (value) => Number.isSafeInteger(value) && value > 0;

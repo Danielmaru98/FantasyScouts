@@ -150,7 +150,7 @@ test("el registro avisa si el navegador acepta el guardado pero descarta los cam
   assert.equal((await getState(createOfflineLeague({ storage }))).monitors.length, 0);
 });
 
-test("index.html arranca como script clásico con una liga local y sin acceso a la red", async () => {
+test("index.html arranca sin red y registra un monitor por clic sin enviar el formulario", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.doesNotMatch(html, /<script[^>]+\bsrc=|<link[^>]+\bhref=|type="module"/i);
   assert.match(html, /<style>[\s\S]+<\/style>/);
@@ -158,17 +158,41 @@ test("index.html arranca como script clásico con una liga local y sin acceso a 
   assert.ok(script);
 
   let fetched = false;
-  const mount = { innerHTML: "", addEventListener() {} };
+  const listeners = new Map();
+  const mount = { innerHTML: "", addEventListener: (name, callback) => listeners.set(name, callback) };
+  const notice = { classList: { toggle() {} } };
   const browser = { localStorage: memoryStorage(), addEventListener() {} };
+  const location = { protocol: "file:", hash: "" };
   vm.runInNewContext(script, {
-    document: { querySelector: () => mount },
+    document: { querySelector: (selector) => selector === "#app" ? mount : notice, getElementById: () => null },
     window: browser,
     navigator: {},
-    location: { protocol: "file:", hash: "" },
+    location,
+    FormData: class extends Map {
+      constructor(form) { super(Object.entries(form.values)); }
+    },
+    clearTimeout() {},
+    setTimeout() {},
     fetch: () => { fetched = true; throw new Error("network unavailable"); },
   });
   await new Promise((resolve) => setImmediate(resolve));
   assert.match(mount.innerHTML, /Prepara tu liga/);
   assert.match(mount.innerHTML, /Vista local/);
+
+  location.hash = "#monitores";
+  const error = {};
+  const form = {
+    dataset: { form: "add-monitor" },
+    values: { name: "Junco", sectionId: "1" },
+    reportValidity: () => true,
+    querySelector: () => error,
+  };
+  const button = { type: "submit", form };
+  let prevented = false;
+  await listeners.get("click")({ target: { closest: () => button }, preventDefault: () => { prevented = true; } });
+  assert.equal(prevented, true);
+  assert.match(mount.innerHTML, /<th scope="row">Junco<\/th>/);
+  assert.match(mount.innerHTML, /<option value="1" selected>Tropa Jungla<\/option>/);
+  assert.equal(notice.textContent, "Monitor registrado.");
   assert.equal(fetched, false);
 });

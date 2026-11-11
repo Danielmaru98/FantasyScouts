@@ -232,7 +232,7 @@ tbody th { font-size: .95rem; font-weight: 700; }
     <div id="app">
       <main class="loading" id="main" tabindex="-1">
         <h1>FantasyScout</h1>
-        <p>Cargando la liga…</p>
+        <p>Descarga este HTML y ábrelo directamente en el navegador para usar FantasyScout.</p>
       </main>
     </div>
     <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
@@ -390,7 +390,7 @@ const LOCAL_KEY = "fantasyscout-108-local-v1";
 const LOCAL_FORMAT = "fantasyscout-108";
 const MONITOR_REGISTER_FORMAT = "fantasyscout-monitores";
 const LOCAL_STATUSES = new Set(["planned", "open", "scoring", "closed"]);
-const UNSAVED = "El navegador limita el guardado local. Descarga una copia desde Monitores o Gestión para conservar esta sesión.";
+const UNSAVED = "El navegador limita el guardado local. Abre el HTML descargado directamente en tu navegador para llevar la liga. Descarga una copia desde Monitores o Gestión para conservar los cambios de esta sesión.";
 const UNREADABLE = "La liga guardada no se pudo leer. Puedes recuperar los datos importando una copia desde Gestión.";
 const localKey = (value) => value.normalize("NFKC").toLocaleLowerCase("es");
 const validLocalId = (value) => Number.isSafeInteger(value) && value > 0;
@@ -850,9 +850,9 @@ async function reload() {
   state = await request("/api/state");
 }
 
-function sectionOptions() {
+function sectionOptions(selectedId) {
   return '<option value="">Elige una sección</option>' + state.sections.map(({ id, name }) =>
-    `<option value="${id}">${h(name)}</option>`).join("");
+    `<option value="${id}"${choose(id, selectedId)}>${h(name)}</option>`).join("");
 }
 
 function brand(link = true) {
@@ -1146,8 +1146,10 @@ function manageSections() {
 function monitorRegisterPage() {
   const monitors = [...state.monitors].sort((a, b) => a.name.localeCompare(b.name, "es") || a.sectionId - b.sectionId);
   const canSaveCopy = localLeague && isAdmin();
-  const description = canSaveCopy && !state.storageWarning
-    ? "El registro se guarda en este navegador." : "Monitores disponibles para las plantillas.";
+  const defaultSection = state.sections.length === 1 ? state.sections[0].id : undefined;
+  const description = localLeague && !isAdmin()
+    ? "En Vista local, elige Organización para registrar un monitor."
+    : canSaveCopy && !state.storageWarning ? "El registro se guarda en este navegador." : "Monitores disponibles para las plantillas.";
   const download = canSaveCopy && monitors.length
     ? '<button class="button secondary" type="button" data-command="export-monitors">Descargar registro</button>' : "";
   const list = `<section class="card table-card">
@@ -1164,7 +1166,7 @@ function monitorRegisterPage() {
       <h2>Registrar monitor</h2>
       <form class="form" data-form="add-monitor">
         <div class="field"><label for="monitor-name">Nombre del monitor</label><input id="monitor-name" name="name" maxlength="60" required></div>
-        <div class="field"><label for="monitor-section">Sección del monitor</label><select id="monitor-section" name="sectionId" required>${sectionOptions()}</select></div>
+        <div class="field"><label for="monitor-section">Sección del monitor</label><select id="monitor-section" name="sectionId" required>${sectionOptions(defaultSection)}</select></div>
         ${errorRegion}<button class="button primary" type="submit">Registrar monitor</button>
       </form>
     </section>
@@ -1340,20 +1342,22 @@ const actions = {
     { categories: data.getAll("category"), note }, "Puntuación guardada."],
 };
 
-app.addEventListener("submit", async (event) => {
-  const form = event.target;
+async function saveForm(form, button) {
   const formName = form.dataset.form;
   const action = actions[formName];
   const importing = localLeague && ["import-backup", "import-monitors"].includes(formName);
-  if (!action && !importing) return;
-  event.preventDefault();
-  if (saving) return;
-  const data = new FormData(form);
+  if ((!action && !importing) || saving) return;
   const errorBox = form.querySelector("[data-error]");
-  const button = form.querySelector('button[type="submit"]');
+  if (!form.reportValidity()) {
+    const label = form.querySelector(":invalid")?.labels?.[0]?.textContent.trim();
+    errorBox.textContent = label ? `Revisa el campo «${label}».` : "Revisa los campos del formulario.";
+    errorBox.hidden = false;
+    return;
+  }
   saving = button.disabled = true;
   errorBox.hidden = true;
   try {
+    const data = new FormData(form);
     let message;
     if (importing) {
       const copy = data.get("copy");
@@ -1375,6 +1379,9 @@ app.addEventListener("submit", async (event) => {
     if (formName === "add-monitor" && state.storageWarning) message = "Monitor añadido a esta sesión. Descarga el registro para conservarlo.";
     if (["login", "admin-login", "register"].includes(formName)) resetRoute();
     render();
+    if (formName === "add-monitor" && currentRoute === "monitores") {
+      document.getElementById("monitor-name")?.focus({ preventScroll: true });
+    }
     if (message) alertUser(message);
   } catch (error) {
     if (error.status === 401 && state.viewer) {
@@ -1387,6 +1394,24 @@ app.addEventListener("submit", async (event) => {
   } finally {
     saving = button.disabled = false;
   }
+}
+
+app.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (!form.dataset.form) return;
+  event.preventDefault();
+  const button = event.submitter ?? form.querySelector('button[type="submit"]');
+  if (button) void saveForm(form, button);
+});
+
+app.addEventListener("keydown", (event) => {
+  if (!localLeague || event.key !== "Enter" || event.isComposing || event.repeat) return;
+  const input = event.target;
+  if (input.tagName !== "INPUT" || !["text", "number", "date"].includes(input.type) || !input.form?.dataset.form) return;
+  const button = input.form.querySelector('button[type="submit"]');
+  if (!button) return;
+  event.preventDefault();
+  button.click();
 });
 
 app.addEventListener("change", async (event) => {
@@ -1448,6 +1473,11 @@ function downloadJson(contents, name) {
 app.addEventListener("click", async (event) => {
   const control = event.target.closest("button, a");
   if (!control) return;
+  if (localLeague && control.type === "submit" && control.form?.dataset.form) {
+    event.preventDefault();
+    await saveForm(control.form, control);
+    return;
+  }
   if (control.hasAttribute("data-route")) {
     if (control.dataset.round) lineupRound = Number(control.dataset.round);
     if (control.dataset.panel) manageTab = control.dataset.panel;

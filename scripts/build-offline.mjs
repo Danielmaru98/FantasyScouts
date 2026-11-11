@@ -28,6 +28,7 @@ ${app}
 })();`;
 
 let output = html.replace("<!doctype html>", "<!doctype html>\n<!-- Generado con npm run build:offline -->");
+output = replaceAsset(output, "<p>Cargando la liga…</p>", "<p>Descarga este HTML y ábrelo directamente en el navegador para usar FantasyScout.</p>");
 output = replaceAsset(output, '<link rel="stylesheet" href="/styles.css">', `<style>\n${css}</style>`);
 output = replaceAsset(output, '<script type="module" src="/app.js"></script>',
   `<script>\n${script.replace(/<\/script/gi, "<\\/script")}\n</script>`);
