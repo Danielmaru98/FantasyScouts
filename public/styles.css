@@ -177,6 +177,7 @@ tbody th { font-size: .95rem; font-weight: 700; }
 .market-places small { font-size: .8rem; color: var(--muted); }
 .market-table thead th:first-child { width: 45%; }
 .market-value { color: var(--forest); font-weight: 800; }
+.market-mobile-label { display: none; }
 .market-action { text-align: right; }
 .market-action .button { min-height: 2.35rem; padding: .36rem .75rem; font-size: .85rem; }
 .market-action .form-error { margin-top: .4rem; text-align: left; white-space: normal; }
@@ -219,11 +220,33 @@ tbody th { font-size: .95rem; font-weight: 700; }
   .stat { padding: .65rem .5rem; border-radius: .85rem; }
   .stat span { font-size: .73rem; line-height: 1.22; }
   .account span { max-width: 6.3rem; }
-  .main-nav a { padding: .4rem .49rem; font-size: .82rem; }
+  .main-nav { flex-wrap: wrap; overflow: visible; }
+  .main-nav a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .4rem .49rem; font-size: .82rem; }
+  .local-account select { min-height: 2.75rem; font-size: 1rem; }
   .person-slot { white-space: normal; text-align: right; }
   th, td { padding: .65rem .55rem; }
   .market-controls .field { max-width: none; }
   .market-places { margin-left: 0; }
+  .market-table, .market-table tbody { display: block; }
+  .market-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .market-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(5.2rem, auto);
+    grid-template-areas: "monitor monitor value" "week total action";
+    align-items: center;
+    gap: .7rem .6rem;
+    padding: .8rem 1rem;
+  }
+  .market-table tbody tr + tr { border-top: 1px solid var(--line); }
+  .market-table tbody :is(th, td) { min-width: 0; padding: 0; border: 0; }
+  .market-monitor { grid-area: monitor; }
+  .market-table .market-value { grid-area: value; white-space: normal; overflow-wrap: anywhere; }
+  .market-table .market-week { grid-area: week; text-align: left; }
+  .market-table .market-total { grid-area: total; text-align: left; }
+  .market-mobile-label { display: block; color: var(--muted); font-size: .76rem; font-weight: 650; }
+  .market-action { grid-area: action; }
+  .market-action .button { min-height: 2.75rem; }
+  .monitor-value-editor summary { padding-block: .75rem; }
 }
 @media (max-width: 360px) {
   .form-columns { grid-template-columns: 1fr; }

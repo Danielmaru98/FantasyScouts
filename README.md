@@ -18,6 +18,15 @@ El **Mercado** muestra el valor en euros de cada monitor. Los monitores parten d
 
 Puedes importar una copia del HTML anterior. Los participantes de aquella liga pasan también al registro de monitores, los fichajes elegidos forman la plantilla histórica y los puntos individuales se conservan.
 
+## Abrir en el móvil con GitHub Pages
+
+1. En [Settings → Pages](https://github.com/Danielmaru98/FantasyScouts/settings/pages), selecciona **Deploy from a branch**, rama **main** y carpeta **/docs**.
+2. Pulsa **Save** y, cuando termine la publicación, abre **Visit site** desde el móvil.
+
+El plan de GitHub debe admitir Pages en repositorios privados. GitHub publica el sitio con acceso público en repositorios personales. La carpeta de publicación contiene el HTML de la liga. En cada navegador, los registros se guardan localmente.
+
+Para llevar tu liga al móvil, descarga una copia en **Gestión → Copia** en el navegador original e impórtala desde esa misma sección en el móvil. Al regenerar el HTML con `npm run build:offline`, se actualiza también la versión de Pages.
+
 ## Arranque con servidor
 
 La versión con servidor comparte las plantillas y los puntos mediante SQLite.

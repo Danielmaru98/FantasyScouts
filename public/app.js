@@ -316,6 +316,7 @@ function marketResults() {
 
   const scoredWeeks = new Set(state.monitorPoints.map(({ roundId }) => roundId));
   const week = state.rounds.findLast(({ id }) => scoredWeeks.has(id));
+  const weekLabel = week ? `Semana ${week.id}` : "Última semana";
   const weekly = new Map();
   const totals = new Map();
   for (const { roundId, monitorId, points } of state.monitorPoints) {
@@ -329,20 +330,23 @@ function marketResults() {
   const showActions = Boolean(me());
 
   return `<div class="table-wrap" tabindex="0" role="region" aria-label="Monitores del mercado">
-    <table class="market-table"><thead><tr><th scope="col">Monitor</th>
-      <th scope="col" class="num">Valor</th>
-      <th scope="col" class="num">${week ? `Semana ${week.id}` : "Última semana"}</th>
-      <th scope="col" class="num">Total</th>${showActions ? '<th scope="col" class="num">Plantilla</th>' : ""}
-    </tr></thead><tbody>${monitors.map(({ id, name, sectionId, marketValueCents }) => {
+    <table class="market-table" role="table"><thead role="rowgroup"><tr role="row">
+      <th scope="col" role="columnheader">Monitor</th>
+      <th scope="col" role="columnheader" class="num">Valor</th>
+      <th scope="col" role="columnheader" class="num">${weekLabel}</th>
+      <th scope="col" role="columnheader" class="num">Total</th>
+      ${showActions ? '<th scope="col" role="columnheader" class="num">Plantilla</th>' : ""}
+    </tr></thead><tbody role="rowgroup">${monitors.map(({ id, name, sectionId, marketValueCents }) => {
       const points = weekly.get(id) ?? (week?.status === "closed" ? 0 : undefined);
       const signed = roster.has(id);
       const label = signed ? "Liberar" : "Fichar";
-      return `<tr${signed ? ' class="active-row"' : ""}>
-        <th scope="row">${personLine(name, sectionName(sectionId))}</th>
-        <td class="num market-value">${euro.format(marketValueDecimal(marketValueCents))}</td>
-        <td class="num">${points === undefined ? "—" : `${points} pt`}</td>
-        <td class="num points">${total(id)} pt</td>
-        ${showActions ? `<td class="market-action">
+      return `<tr role="row"${signed ? ' class="active-row"' : ""}>
+        <th scope="row" role="rowheader" class="market-monitor">${personLine(name, sectionName(sectionId))}</th>
+        <td role="cell" class="num market-value">${euro.format(marketValueDecimal(marketValueCents))}</td>
+        <td role="cell" class="num market-week"><span class="market-mobile-label" aria-hidden="true">${weekLabel}</span>
+          ${points === undefined ? "—" : `${points} pt`}</td>
+        <td role="cell" class="num points market-total"><span class="market-mobile-label" aria-hidden="true">Total</span>${total(id)} pt</td>
+        ${showActions ? `<td role="cell" class="market-action">
           <form data-form="market-transfer" data-id="${id}" data-move="${signed ? "release" : "sign"}">
             <button id="market-action-${id}" class="button ${signed ? "secondary" : "primary"}" type="submit"
               aria-label="${label} a ${h(name)}"${!signed && full ? ' disabled aria-describedby="market-full"' : ""}>${label}</button>

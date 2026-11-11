@@ -1,0 +1,1754 @@
+<!doctype html>
+<!-- Generado con npm run build:offline -->
+<html lang="es">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#153b30">
+    <meta name="description" content="FantasyScout, la liga de scouters del Grupo Scout Ciudad del Sol 108.">
+    <title>FantasyScout · Grupo 108</title>
+    <style>
+:root {
+  color-scheme: light;
+  font-family: "DM Sans", Inter, system-ui, sans-serif;
+  color: #18342b;
+  background: #f7f8f3;
+  --forest: #153b30;
+  --forest-dark: #0c2923;
+  --ink: #18342b;
+  --muted: #54665e;
+  --paper: #f7f8f3;
+  --surface: #fff;
+  --line: #dce5da;
+  --mint: #edf3eb;
+  --lime: #dcef9b;
+  --error: #9a352b;
+  --radius: 20px;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; min-width: 280px; line-height: 1.5; }
+button, input, select, textarea { font: inherit; }
+button, select { cursor: pointer; }
+button:disabled, select:disabled { cursor: default; }
+[hidden] { display: none !important; }
+a { color: inherit; }
+h1, h2, h3, p { margin: 0; }
+h1, h2, h3 { line-height: 1.15; letter-spacing: -.035em; }
+p + p { margin-top: .55rem; }
+:focus-visible { outline: 3px solid #7d9d45; outline-offset: 3px; }
+
+.skip-link { position: absolute; z-index: 3; left: 1rem; top: -5rem; padding: .65rem 1rem; background: var(--surface); }
+.skip-link:focus { top: 1rem; }
+.loading { min-height: 100svh; display: grid; align-content: center; justify-items: center; gap: .75rem; padding: 2rem; text-align: center; }
+.muted, .hint { color: var(--muted); }
+.hint { font-size: .875rem; }
+.eyebrow { font-size: .73rem; font-weight: 750; letter-spacing: .11em; text-transform: uppercase; }
+
+.brand { display: inline-flex; gap: .68rem; align-items: center; text-decoration: none; width: fit-content; }
+.brand-name { display: block; font-size: 1.07rem; font-weight: 800; line-height: 1.15; letter-spacing: -.045em; }
+.brand-group { display: block; font-size: .72rem; line-height: 1.4; color: var(--muted); }
+.mark { position: relative; width: 2.45rem; height: 2.45rem; border-radius: .82rem; background: var(--forest); display: grid; place-items: center; flex: none; }
+.mark::before { content: ""; width: .93rem; height: .93rem; transform: rotate(45deg); border: 2px solid var(--lime); border-radius: .17rem; }
+.mark::after { content: ""; position: absolute; width: .29rem; height: .29rem; border-radius: 50%; background: var(--lime); }
+
+.auth-shell { min-height: 100svh; display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); }
+.auth-story, .hero { position: relative; overflow: hidden; isolation: isolate; color: #f7fbf1; background: var(--forest); }
+.auth-story::before, .hero::before {
+  content: "";
+  z-index: -1;
+  position: absolute;
+  inset: -15% -20% -40% 12%;
+  background: repeating-radial-gradient(ellipse at 69% 60%, transparent 0 24px, #b0d2a329 25px 26px, transparent 27px 41px);
+  transform: rotate(-18deg);
+  pointer-events: none;
+}
+.auth-story { display: flex; flex-direction: column; justify-content: space-between; gap: 3rem; padding: clamp(2rem, 6vw, 6rem); min-height: 38rem; background: linear-gradient(155deg, #173f34 18%, #0b2821 100%); }
+.auth-story .brand-group { color: #c4d7c9; }
+.auth-story .mark { background: #f5f9e9; }
+.auth-story .mark::before { border-color: var(--forest); }
+.auth-story .mark::after { background: var(--forest); }
+.story-copy { max-width: 36rem; }
+.story-copy .eyebrow { color: var(--lime); margin-bottom: 1rem; }
+.story-copy h1 { font-size: clamp(3.1rem, 7vw, 6.3rem); line-height: .98; letter-spacing: -.08em; overflow-wrap: anywhere; }
+.story-copy p:last-child { max-width: 29rem; margin-top: 1.4rem; color: #d4e3d7; font-size: clamp(1rem, 1.8vw, 1.25rem); }
+.auth-story .story-copy { margin-block: auto; }
+.auth-panel { padding: clamp(1.25rem, 5vw, 5rem); display: grid; place-items: center; background: #fafbf7; }
+.auth-box { width: min(100%, 27rem); }
+.auth-box h2 { font-size: clamp(1.9rem, 3.3vw, 2.65rem); margin-bottom: .45rem; }
+.auth-switch, .segmented { display: flex; flex-wrap: wrap; gap: .35rem; padding: .3rem; border-radius: .85rem; background: var(--mint); width: fit-content; margin: 1.15rem 0; }
+.auth-switch { width: 100%; }
+.auth-switch button { flex: 1; }
+.auth-switch button, .segmented button, .segmented a { border: 0; border-radius: .6rem; background: transparent; padding: .52rem .85rem; color: var(--muted); font-weight: 650; font-size: .92rem; text-decoration: none; }
+.auth-switch button[aria-pressed="true"], .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--forest); box-shadow: 0 1px 4px #1e403115; }
+.auth-box form { margin-top: 1.15rem; }
+.auth-box form .button { width: 100%; }
+.auth-link { margin-top: 1.25rem; }
+
+.button { display: inline-flex; align-items: center; justify-content: center; gap: .45rem; border: 1px solid transparent; border-radius: .78rem; min-height: 2.7rem; padding: .58rem 1rem; font-weight: 750; text-decoration: none; line-height: 1.25; width: fit-content; }
+.button.primary { color: #fff; background: var(--forest); }
+.button.primary:hover:not(:disabled) { background: #245642; }
+.button.secondary { color: var(--forest); background: #fff; border-color: var(--line); }
+.button.secondary:hover:not(:disabled) { background: var(--mint); }
+.button.accent { color: #203a26; background: var(--lime); }
+.button.accent:hover { background: #ecf6c7; }
+.button:disabled { opacity: .57; }
+.link-button { border: 0; background: transparent; padding: .25rem 0; text-decoration: underline; text-underline-offset: .2em; font-weight: 700; color: var(--forest); }
+.form { display: grid; gap: .9rem; }
+.field { display: grid; gap: .28rem; min-width: 0; }
+.field label, .field > span { font-weight: 700; font-size: .86rem; }
+input:not([type="checkbox"]), select, textarea { width: 100%; min-width: 0; padding: .57rem .73rem; min-height: 2.7rem; color: var(--ink); background: #fff; border: 1px solid #cddbcf; border-radius: .66rem; }
+input::placeholder, textarea::placeholder { color: #63736a; }
+textarea { min-height: 5.1rem; resize: vertical; }
+select:disabled, textarea:disabled, input:disabled { background: #f0f4ef; opacity: .7; }
+.form-error { color: var(--error); background: #fff0ed; border-radius: .65rem; padding: .56rem .75rem; font-size: .9rem; }
+.form-columns { display: grid; gap: .8rem; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.form-actions { display: flex; align-items: center; gap: .75rem; flex-wrap: wrap; }
+
+.topbar { background: var(--surface); border-bottom: 1px solid var(--line); }
+.topbar-inner { min-height: 4.65rem; max-width: 1260px; margin: 0 auto; padding: .65rem clamp(1rem, 3vw, 2rem); display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+.main-nav { display: flex; gap: .15rem; align-items: center; overflow-x: auto; }
+.main-nav a { padding: .5rem .72rem; border-radius: .62rem; text-decoration: none; font-size: .88rem; color: var(--muted); font-weight: 700; white-space: nowrap; }
+.main-nav a[aria-current="page"] { color: var(--forest); background: var(--mint); }
+.main-nav a:hover { color: var(--forest); background: #f0f5ef; }
+.account { display: flex; align-items: center; gap: .65rem; }
+.account span { max-width: 10rem; overflow-wrap: anywhere; font-size: .88rem; font-weight: 750; }
+.account .button { min-height: 2.15rem; padding: .35rem .6rem; font-size: .8rem; }
+.local-account { display: flex; align-items: center; gap: .48rem; }
+.local-account label { color: var(--muted); font-size: .78rem; font-weight: 750; white-space: nowrap; }
+.local-account select { width: clamp(7rem, 14vw, 12rem); min-height: 2.15rem; padding: .35rem .46rem; font-size: .84rem; }
+.local-warning { border-radius: .8rem; background: #f7edca; color: #65450e; padding: .65rem .85rem; }
+.workspace { max-width: 1210px; margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem) 3rem; display: grid; gap: 1.2rem; }
+.page-head { display: flex; justify-content: space-between; align-items: end; gap: .9rem; flex-wrap: wrap; margin-bottom: .2rem; }
+.page-head h1 { font-size: clamp(1.9rem, 4vw, 3rem); margin-bottom: .3rem; }
+
+.hero { border-radius: var(--radius); background: linear-gradient(120deg, #163d31 20%, #23503f 100%); padding: clamp(1.2rem, 4vw, 2.6rem); min-height: 15rem; }
+.hero::before { inset: -90% -15% -115% 36%; }
+.hero-content { max-width: 42rem; display: grid; justify-items: start; gap: .8rem; }
+.hero h1 { font-size: clamp(2rem, 5vw, 3.55rem); letter-spacing: -.06em; }
+.hero p { max-width: 37rem; color: #e0ecdf; font-size: 1.04rem; }
+.hero .button { margin-top: .2rem; }
+.hero-meta, .round-meta { display: flex; gap: .55rem; align-items: center; flex-wrap: wrap; }
+.hero-meta { color: #e1ebda; }
+.pill { display: inline-flex; align-items: center; width: fit-content; border-radius: 99px; background: #eef2ee; color: #46584c; padding: .24rem .61rem; font-size: .76rem; font-weight: 750; line-height: 1.35; }
+.pill.open { color: #22452e; background: #e0efcb; }
+.pill.scoring { color: #73470b; background: #f7edca; }
+.pill.closed { color: #364b62; background: #e7eef4; }
+.hero .pill.planned { color: #edf5e8; background: #ffffff21; }
+.card { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: clamp(1rem, 2.3vw, 1.5rem); }
+.card h2 { font-size: 1.23rem; }
+.card-head { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: .65rem; margin-bottom: .9rem; }
+.stat-grid, .home-grid, .round-grid { display: grid; gap: .9rem; }
+.stat-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.stat { display: grid; gap: .35rem; }
+.stat strong { font-size: clamp(1.6rem, 4vw, 2.15rem); line-height: 1; letter-spacing: -.045em; font-variant-numeric: tabular-nums; }
+.stat span { color: var(--muted); font-size: .87rem; }
+.home-grid { grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr); }
+.round-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.round-card { display: grid; align-content: start; gap: .75rem; }
+.round-card .card-head { margin-bottom: 0; }
+.round-card .button { margin-top: .25rem; }
+.round-date { color: var(--muted); font-size: .84rem; }
+.round-card .round-meta { min-height: 1.65rem; }
+.empty { padding: .9rem 0; color: var(--muted); }
+
+.leader-list, .person-list, .rule-list, .checklist { list-style: none; margin: 0; padding: 0; }
+.leader-list li { display: grid; grid-template-columns: 1.85rem minmax(0, 1fr) auto; gap: .65rem; padding: .68rem 0; align-items: center; border-top: 1px solid #eaf0e9; }
+.leader-list li:first-child { border-top: 0; }
+.rank { color: #4e634e; font-weight: 800; font-size: .94rem; text-align: center; }
+.person-line { display: flex; align-items: center; gap: .6rem; min-width: 0; }
+.avatar { display: grid; place-items: center; width: 2.25rem; height: 2.25rem; flex: none; border-radius: .7rem; background: #eaf1e2; color: #325640; font-size: .79rem; font-weight: 850; text-transform: uppercase; }
+.person-copy { min-width: 0; overflow-wrap: anywhere; }
+.person-copy strong, .person-copy small { display: block; }
+.person-copy strong { line-height: 1.24; }
+.person-copy small { color: var(--muted); font-size: .77rem; margin-top: .15rem; }
+.points { font-weight: 850; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.person-list { display: grid; gap: .45rem; }
+.person-list li { display: flex; justify-content: space-between; align-items: center; gap: .6rem; background: #f5f8f3; border-radius: .78rem; padding: .54rem .64rem; }
+.person-slot { color: var(--muted); white-space: nowrap; font-size: .77rem; }
+.monitor-picker { max-height: 22rem; overflow: auto; padding: .2rem .25rem; display: grid; gap: .75rem; }
+.monitor-picker fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.monitor-picker legend { margin-bottom: .35rem; color: var(--muted); font-size: .85rem; font-weight: 750; }
+.monitor-picker .check-row { grid-template-columns: auto 1fr; cursor: pointer; }
+.table-card { padding: 0; overflow: hidden; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; text-align: left; }
+th, td { padding: .76rem .8rem; border-bottom: 1px solid #eaf0e9; }
+thead { color: #3e5748; background: #eef4ec; white-space: nowrap; }
+thead th { font-size: .79rem; }
+tbody tr:last-child > * { border-bottom: 0; }
+td.num, th.num { text-align: right; white-space: nowrap; }
+tbody .active-row { background: #f3f7ee; }
+tbody th { font-size: .95rem; font-weight: 700; }
+.table-card .empty { padding: 1rem 1.5rem; }
+.market-controls { display: flex; align-items: end; flex-wrap: wrap; gap: .75rem 1rem; padding: 1rem; }
+.market-controls .field { flex: 1 1 10rem; max-width: 23rem; }
+.market-places { display: grid; gap: .2rem; margin-left: auto; }
+.market-places small { font-size: .8rem; color: var(--muted); }
+.market-table thead th:first-child { width: 45%; }
+.market-value { color: var(--forest); font-weight: 800; }
+.market-mobile-label { display: none; }
+.market-action { text-align: right; }
+.market-action .button { min-height: 2.35rem; padding: .36rem .75rem; font-size: .85rem; }
+.market-action .form-error { margin-top: .4rem; text-align: left; white-space: normal; }
+.monitor-value-editor { margin-top: .2rem; white-space: normal; text-align: left; }
+.monitor-value-editor summary { width: fit-content; margin-left: auto; cursor: pointer; color: var(--forest); font-size: .8rem; font-weight: 700; }
+.monitor-value-editor form { gap: .55rem; margin-top: .6rem; min-width: 9.5rem; }
+
+.rules-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .8rem; }
+.rule-list li { padding: .65rem 0; border-top: 1px solid #e8efe7; display: grid; grid-template-columns: 1fr auto; gap: .22rem .5rem; align-items: start; }
+.rule-list li:first-child { border-top: 0; }
+.rule-list li small { grid-column: 1; color: var(--muted); }
+.rule-list li .pill { grid-column: 2; grid-row: 1 / span 2; }
+.section-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .85rem; }
+.manage-grid { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, .85fr); gap: .9rem; align-items: start; }
+.manage-grid > .card { display: grid; align-content: start; gap: .65rem; }
+.checklist { display: grid; gap: .4rem; }
+.check-row { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: .6rem; padding: .55rem .6rem; border: 1px solid var(--line); border-radius: .72rem; }
+.check-row input { width: 1.13rem; height: 1.13rem; accent-color: var(--forest); margin: 0; }
+.check-row span small { display: block; color: var(--muted); font-size: .77rem; }
+.check-row:has(input:checked) { background: #eff6e7; }
+.notice { position: fixed; z-index: 4; right: 1rem; bottom: 1rem; max-width: min(27rem, calc(100% - 2rem)); padding: .7rem 1rem; border-radius: .75rem; background: var(--forest-dark); color: white; box-shadow: 0 5px 15px #0c29233b; }
+.notice.error { background: #843e34; }
+.footer { max-width: 1210px; margin: 0 auto; padding: 0 2rem 1.5rem; color: var(--muted); font-size: .8rem; }
+
+@media (max-width: 930px) {
+  .topbar-inner { gap: .6rem 1rem; }
+  .main-nav { order: 3; width: 100%; }
+  .auth-story { padding: 2rem; }
+  .story-copy h1 { font-size: clamp(2.8rem, 7vw, 5rem); }
+  .manage-grid { grid-template-columns: 1fr; }
+}
+@media (max-width: 680px) {
+  .auth-shell, .home-grid, .round-grid, .section-grid, .rules-grid { grid-template-columns: 1fr; }
+  .auth-story { min-height: 0; padding: 1.3rem 1.1rem 1.5rem; gap: 1.55rem; }
+  .story-copy .eyebrow { margin-bottom: .35rem; }
+  .story-copy p:last-child { margin-top: .5rem; }
+  .auth-panel { padding: 1.4rem 1rem 2rem; }
+  .workspace { padding-top: 1rem; gap: .85rem; }
+  .stat-grid { gap: .4rem; }
+  .stat { padding: .65rem .5rem; border-radius: .85rem; }
+  .stat span { font-size: .73rem; line-height: 1.22; }
+  .account span { max-width: 6.3rem; }
+  .main-nav { flex-wrap: wrap; overflow: visible; }
+  .main-nav a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: .4rem .49rem; font-size: .82rem; }
+  .local-account select { min-height: 2.75rem; font-size: 1rem; }
+  .person-slot { white-space: normal; text-align: right; }
+  th, td { padding: .65rem .55rem; }
+  .market-controls .field { max-width: none; }
+  .market-places { margin-left: 0; }
+  .market-table, .market-table tbody { display: block; }
+  .market-table thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+  .market-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(5.2rem, auto);
+    grid-template-areas: "monitor monitor value" "week total action";
+    align-items: center;
+    gap: .7rem .6rem;
+    padding: .8rem 1rem;
+  }
+  .market-table tbody tr + tr { border-top: 1px solid var(--line); }
+  .market-table tbody :is(th, td) { min-width: 0; padding: 0; border: 0; }
+  .market-monitor { grid-area: monitor; }
+  .market-table .market-value { grid-area: value; white-space: normal; overflow-wrap: anywhere; }
+  .market-table .market-week { grid-area: week; text-align: left; }
+  .market-table .market-total { grid-area: total; text-align: left; }
+  .market-mobile-label { display: block; color: var(--muted); font-size: .76rem; font-weight: 650; }
+  .market-action { grid-area: action; }
+  .market-action .button { min-height: 2.75rem; }
+  .monitor-value-editor summary { padding-block: .75rem; }
+}
+@media (max-width: 360px) {
+  .form-columns { grid-template-columns: 1fr; }
+  .account span { display: none; }
+}
+</style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Saltar al contenido</a>
+    <div id="app">
+      <main class="loading" id="main" tabindex="-1">
+        <h1>FantasyScout</h1>
+        <p>Descarga este HTML y ábrelo directamente en el navegador para usar FantasyScout.</p>
+      </main>
+    </div>
+    <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>
+    <noscript>Activa JavaScript para entrar en la liga.</noscript>
+    <script>
+(() => {
+  "use strict";
+const CONTRIBUTIONS = [
+  { id: "task", label: "Tarea acordada", points: 3, description: "Preparar una actividad, coordinar una salida o dejar listo el material." },
+  { id: "help", label: "Apoyo", points: 2, description: "Ayudar a otro monitor con una tarea concreta." },
+  { id: "challenge", label: "Reto común", points: 2, description: "Completar el reto anunciado para la semana." },
+  { id: "improvement", label: "Mejora", points: 1, description: "Proponer una mejora que el equipo ponga en práctica." },
+];
+
+const STARTER_CHALLENGES = [
+  "Dejar por escrito un juego breve que otra sección pueda adaptar.",
+  "Preparar una variante de una actividad para un día de lluvia.",
+  "Adaptar un juego para que alguien que se incorpora por primera vez pueda participar.",
+  "Probar una dinámica prestada de otra sección y contarle cómo salió.",
+];
+
+const DEFAULT_ROSTER_SIZE = 5;
+const MAX_ROSTER_SIZE = 30;
+const DEFAULT_MARKET_VALUE_CENTS = 100_000;
+const MARKET_VALUE_ERROR = "Introduce un valor en euros igual o superior a cero, con hasta dos decimales.";
+
+function validRosterSize(size) {
+  return Number.isInteger(size) && size >= 1 && size <= MAX_ROSTER_SIZE;
+}
+
+function validMarketValue(cents) {
+  return Number.isSafeInteger(cents) && cents >= 0;
+}
+
+function contributionMask(categories) {
+  if (!Array.isArray(categories)) return null;
+
+  let mask = 0;
+  for (const category of categories) {
+    const index = CONTRIBUTIONS.findIndex(({ id }) => id === category);
+    if (index < 0) return null;
+    mask |= 1 << index;
+  }
+  return mask;
+}
+
+function pointsFor(mask) {
+  return CONTRIBUTIONS.reduce((points, category, index) => {
+    return points + (mask & (1 << index) ? category.points : 0);
+  }, 0);
+}
+
+function rosterProblem(monitorIds, monitors, size) {
+  if (!Array.isArray(monitorIds)) return "Elige los monitores de tu equipo.";
+  if (monitorIds.length > size) return `Tu plantilla admite hasta ${size} monitores.`;
+  if (new Set(monitorIds).size !== monitorIds.length) return "Cada monitor ocupa una plaza en tu equipo.";
+  const available = new Set(monitors.map(({ id }) => id));
+  if (!monitorIds.every((id) => available.has(id))) return "Selecciona monitores registrados en la liga.";
+  return null;
+}
+
+function rosterAfterTransfer(currentIds, monitors, size, monitorId, action) {
+  if (action !== "sign" && action !== "release") return { problem: "Elige fichar o liberar al monitor." };
+  if (!monitors.some(({ id }) => id === monitorId)) return { problem: "El monitor no está registrado en la liga." };
+  const monitorIds = action === "sign"
+    ? [...new Set([...currentIds, monitorId])]
+    : currentIds.filter((id) => id !== monitorId);
+  return { monitorIds, problem: rosterProblem(monitorIds, monitors, size) };
+}
+
+const TRANSITIONS = {
+  open: { from: "planned", to: "open" },
+  lock: { from: "open", to: "scoring" },
+  close: { from: "scoring", to: "closed" },
+  reopen: { from: "closed", to: "scoring" },
+};
+
+function nextRoundStatus(status, action) {
+  const transition = Object.hasOwn(TRANSITIONS, action) ? TRANSITIONS[action] : null;
+  if (!transition || (transition.from !== status && transition.to !== status)) return null;
+  return transition.to;
+}
+
+function indexByRound(rounds, entries, key, valueFor) {
+  const index = new Map(rounds.map(({ id }) => [id, new Map()]));
+  for (const entry of entries) {
+    index.get(entry.roundId)?.set(entry[key], valueFor(entry));
+  }
+  return index;
+}
+
+function calculateStandings(players, rounds, scores, roundRosters) {
+  const pointsByRound = indexByRound(rounds, scores, "monitorId", ({ mask }) => pointsFor(mask));
+  const rostersByRound = indexByRound(rounds, roundRosters, "playerId", ({ monitorIds }) => monitorIds);
+  const rows = players.map(({ id, alias, team, sectionId }) => {
+    let total = 0;
+    const results = rounds.map((round) => {
+      const points = pointsByRound.get(round.id);
+      const members = rostersByRound.get(round.id).get(id) ?? [];
+      const weekly = members.reduce((sum, monitorId) => sum + (points.get(monitorId) ?? 0), 0);
+      total += weekly;
+      return {
+        roundId: round.id,
+        total: weekly,
+        scored: points.size > 0 || round.status === "closed",
+      };
+    });
+    return { id, alias, team, sectionId, total, results };
+  });
+
+  rows.sort((a, b) => b.total - a.total ||
+    a.team.localeCompare(b.team, "es") || a.alias.localeCompare(b.alias, "es") || a.id - b.id);
+
+  let rank = 0;
+  return rows.map((row, index) => {
+    const previous = rows[index - 1];
+    if (!previous || row.total !== previous.total) rank = index + 1;
+    return { ...row, rank };
+  });
+}
+
+function convertLegacyGame({ players, rounds, lineups, scores }) {
+  const latest = new Map();
+  const frozen = new Set(rounds.filter(({ status }) => status === "scoring" || status === "closed").map(({ id }) => id));
+  const roundRosters = [];
+  for (const { playerId, roundId, firstPickId, secondPickId } of [...lineups].sort((a, b) => a.roundId - b.roundId)) {
+    const monitorIds = [firstPickId, secondPickId];
+    latest.set(playerId, { playerId, monitorIds });
+    if (frozen.has(roundId)) roundRosters.push({ roundId, playerId, monitorIds });
+  }
+  return {
+    monitors: players.map(({ id, alias, sectionId }) => ({ id, name: alias, sectionId })),
+    rosterSize: DEFAULT_ROSTER_SIZE,
+    rosters: [...latest.values()],
+    roundRosters,
+    scores: scores.map(({ playerId, ...score }) => ({ ...score, monitorId: playerId })),
+  };
+}
+
+function leagueView(snapshot, actor) {
+  const { sections, players, monitors, rounds, rosterSize, rosters, roundRosters, scores } = snapshot;
+  const publicSections = sections.map(({ id, name }) => ({ id, name }));
+  const player = actor && players.find(({ id }) => id === actor.playerId);
+  if (!actor || (!actor.isAdmin && !player)) return { viewer: null, sections: publicSections };
+
+  const reviewIds = sections.filter(({ id, reviewerId }) => actor.isAdmin || reviewerId === player?.id)
+    .map(({ id }) => id);
+  const reviewable = new Set(reviewIds);
+  const monitorSections = new Map(monitors.map(({ id, sectionId }) => [id, sectionId]));
+  const viewer = actor.isAdmin ? { role: "admin", reviewIds } : { role: "player", player, reviewIds };
+  return {
+    viewer,
+    sections: actor.isAdmin ? sections : publicSections,
+    players,
+    monitors,
+    defaultMarketValueCents: DEFAULT_MARKET_VALUE_CENTS,
+    rounds,
+    rosterSize,
+    rosterLimit: MAX_ROSTER_SIZE,
+    contributions: CONTRIBUTIONS,
+    standings: calculateStandings(players, rounds, scores, roundRosters),
+    roster: rosters.find(({ playerId }) => playerId === player?.id)?.monitorIds ?? [],
+    weeklyRosters: roundRosters.filter(({ playerId }) => playerId === player?.id),
+    monitorPoints: scores.map(({ roundId, monitorId, mask }) => ({ roundId, monitorId, points: pointsFor(mask) })),
+    reviewScores: scores.filter(({ monitorId }) => reviewable.has(monitorSections.get(monitorId))),
+  };
+}
+
+
+const LOCAL_KEY = "fantasyscout-108-local-v1";
+const LOCAL_FORMAT = "fantasyscout-108";
+const MONITOR_REGISTER_FORMAT = "fantasyscout-monitores";
+const LOCAL_STATUSES = new Set(["planned", "open", "scoring", "closed"]);
+const UNSAVED = "El navegador limita el guardado local. Abre el HTML descargado directamente en tu navegador para llevar la liga. Descarga una copia desde Monitores o Gestión para conservar los cambios de esta sesión.";
+const UNREADABLE = "La liga guardada no se pudo leer. Puedes recuperar los datos importando una copia desde Gestión.";
+const localKey = (value) => value.normalize("NFKC").toLocaleLowerCase("es");
+const validLocalId = (value) => Number.isSafeInteger(value) && value > 0;
+const hasUnique = (rows, key) => new Set(rows.map(key)).size === rows.length;
+const weeklyRosterKey = ({ roundId, playerId }) => `${roundId}/${playerId}`;
+const weeklyScoreKey = ({ roundId, monitorId }) => `${roundId}/${monitorId}`;
+const isFixed = (status) => status === "scoring" || status === "closed";
+
+function localError(message, status = 400) {
+  return Object.assign(new Error(message), { status });
+}
+
+function localText(value, label, max, optional = false) {
+  const text = typeof value === "string" ? value.trim().normalize("NFC") : "";
+  if (typeof value !== "string" || (!text && !optional) || text.length > max || text.includes("\0")) {
+    throw localError(`Revisa ${label}. El máximo es de ${max} caracteres.`);
+  }
+  return text;
+}
+
+function localDate(value) {
+  if (value === null || value === "") return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    throw localError("Introduce una fecha válida.");
+  }
+  const date = new Date(`${value}T12:00:00Z`);
+  if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== value) {
+    throw localError("Introduce una fecha válida.");
+  }
+  return value;
+}
+
+function newLocalLeague() {
+  return {
+    format: LOCAL_FORMAT,
+    version: 2,
+    sections: [{ id: 1, name: "Tropa Jungla", reviewerId: null }],
+    players: [],
+    rounds: STARTER_CHALLENGES.map((challenge, index) => ({ id: index + 1, challenge, date: null, status: "planned" })),
+    monitors: [],
+    rosterSize: DEFAULT_ROSTER_SIZE,
+    rosters: [],
+    roundRosters: [],
+    scores: [],
+  };
+}
+
+function normalizeCopy(serialized) {
+  const invalid = () => localError("El archivo no contiene una copia válida de FantasyScout.");
+  let data;
+  try {
+    data = JSON.parse(serialized);
+  } catch {
+    throw invalid();
+  }
+  if (data?.format !== LOCAL_FORMAT || ![1, 2].includes(data.version)) throw invalid();
+  const gameLists = data.version === 1 ? ["lineups"] : ["monitors", "rosters", "roundRosters"];
+  if (!["sections", "players", "rounds", "scores", ...gameLists].every((name) =>
+        Array.isArray(data[name]) && data[name].every((row) => row && typeof row === "object"))) {
+    throw invalid();
+  }
+  if (data.version === 1) data = { ...data, ...convertLegacyGame(data), version: 2 };
+
+  const sections = data.sections.map(({ id, name, reviewerId }) => ({
+    id, name: localText(name, "el nombre de la sección", 60), reviewerId,
+  }));
+  const players = data.players.map(({ id, alias, team, sectionId }) => ({
+    id, alias: localText(alias, "el alias", 32), team: localText(team, "el nombre del equipo", 52), sectionId,
+  }));
+  const rounds = data.rounds.map(({ id, challenge, date, status }) => ({
+    id, challenge: localText(challenge, "el reto", 280, true), date: localDate(date), status,
+  })).sort((a, b) => a.id - b.id);
+  const monitors = data.monitors.map(({ id, name, sectionId, marketValueCents = DEFAULT_MARKET_VALUE_CENTS }) => ({
+    id, name: localText(name, "el nombre del monitor", 60), sectionId, marketValueCents,
+  }));
+  const rosterSize = data.rosterSize;
+  const rosters = data.rosters.map(({ playerId, monitorIds }) => ({ playerId, monitorIds }));
+  const roundRosters = data.roundRosters.map(({ roundId, playerId, monitorIds }) => ({ roundId, playerId, monitorIds }));
+  const scores = data.scores.map(({ roundId, monitorId, mask, note }) =>
+    ({ roundId, monitorId, mask, note: localText(note, "la nota", 280, true) }));
+  const sectionById = new Map(sections.map((section) => [section.id, section]));
+  const playerById = new Map(players.map((player) => [player.id, player]));
+  const roundById = new Map(rounds.map((round) => [round.id, round]));
+  const monitorById = new Map(monitors.map((monitor) => [monitor.id, monitor]));
+
+  if (!sections.length || !hasUnique(sections, ({ name }) => localKey(name)) ||
+      sectionById.size !== sections.length || !sections.every(({ id, reviewerId }) =>
+        validLocalId(id) && (reviewerId === null || playerById.get(reviewerId)?.sectionId === id)) ||
+      playerById.size !== players.length || !hasUnique(players, ({ alias }) => localKey(alias)) ||
+      !players.every(({ id, sectionId }) => validLocalId(id) && sectionById.has(sectionId)) ||
+      monitorById.size !== monitors.length ||
+      !hasUnique(monitors, ({ name, sectionId }) => `${sectionId}/${localKey(name)}`) ||
+      !monitors.every(({ id, sectionId, marketValueCents }) =>
+        validLocalId(id) && sectionById.has(sectionId) && validMarketValue(marketValueCents)) ||
+      !validRosterSize(rosterSize) || !rounds.length ||
+      !rounds.every(({ id, status }, index) => id === index + 1 && LOCAL_STATUSES.has(status))) {
+    throw invalid();
+  }
+  if (!hasUnique(rosters, ({ playerId }) => playerId) || !rosters.every(({ playerId, monitorIds }) =>
+    playerById.has(playerId) && !rosterProblem(monitorIds, monitors, rosterSize))) throw invalid();
+  if (!hasUnique(roundRosters, weeklyRosterKey) || !roundRosters.every(({ roundId, playerId, monitorIds }) =>
+    isFixed(roundById.get(roundId)?.status) && playerById.has(playerId) &&
+    !rosterProblem(monitorIds, monitors, MAX_ROSTER_SIZE))) throw invalid();
+  if (!hasUnique(scores, weeklyScoreKey) || !scores.every(({ roundId, monitorId, mask }) =>
+    monitorById.has(monitorId) && isFixed(roundById.get(roundId)?.status) &&
+    Number.isInteger(mask) && mask >= 0 && mask < 2 ** CONTRIBUTIONS.length)) throw invalid();
+
+  return { format: LOCAL_FORMAT, version: 2, sections, players, monitors, rounds, rosterSize, rosters, roundRosters, scores };
+}
+
+function saveLocalEntry(rows, entry, key) {
+  const index = rows.findIndex((row) => key(row) === key(entry));
+  if (index === -1) rows.push(entry);
+  else rows[index] = entry;
+}
+
+function addLocalId(rows) {
+  const id = rows.reduce((highest, row) => Math.max(highest, row.id), 0) + 1;
+  if (!validLocalId(id)) throw localError("La copia no admite más registros.");
+  return id;
+}
+
+function addMonitorTo(snapshot, name, sectionId, marketValueCents) {
+  if (snapshot.monitors.some((monitor) => monitor.sectionId === sectionId && localKey(monitor.name) === localKey(name))) {
+    return false;
+  }
+  snapshot.monitors.push({ id: addLocalId(snapshot.monitors), name, sectionId, marketValueCents });
+  return true;
+}
+
+function monitorRegisterRows(snapshot) {
+  const sections = new Map(snapshot.sections.map(({ id, name }) => [id, name]));
+  return snapshot.monitors.map(({ name, sectionId, marketValueCents }) =>
+    ({ name, section: sections.get(sectionId), marketValueCents }));
+}
+
+function readMonitorRegister(serialized) {
+  const invalid = () => localError("Elige un registro de monitores o una copia válida de FantasyScout.");
+  let copy;
+  try {
+    copy = JSON.parse(serialized);
+  } catch {
+    throw invalid();
+  }
+  if (copy?.format === LOCAL_FORMAT) return monitorRegisterRows(normalizeCopy(serialized));
+  if (copy?.format !== MONITOR_REGISTER_FORMAT || copy.version !== 1 ||
+      !Array.isArray(copy.monitors) || copy.monitors.some((row) => !row || typeof row !== "object")) {
+    throw invalid();
+  }
+  return copy.monitors.map(({ name, section, marketValueCents = DEFAULT_MARKET_VALUE_CENTS }) => {
+    if (!validMarketValue(marketValueCents)) throw invalid();
+    return {
+      name: localText(name, "el nombre del monitor", 60),
+      section: localText(section, "el nombre de la sección", 60),
+      marketValueCents,
+    };
+  });
+}
+
+function createOfflineLeague({ storage = null, locks = null } = {}) {
+  let activeId = null;
+  let data = newLocalLeague();
+  let lastStored = null;
+  let warning = storage ? "" : UNSAVED;
+
+  function read() {
+    if (!storage) return data;
+    let stored;
+    try {
+      stored = storage.getItem(LOCAL_KEY);
+    } catch {
+      storage = null;
+      warning = UNSAVED;
+      return data;
+    }
+    if (stored === lastStored) return data;
+    lastStored = stored;
+    try {
+      data = stored === null ? newLocalLeague() : normalizeCopy(stored);
+      warning = "";
+    } catch {
+      warning = UNREADABLE;
+    }
+    return data;
+  }
+
+  function write(next) {
+    data = next;
+    if (!storage) return;
+    const serialized = JSON.stringify(next);
+    try {
+      storage.setItem(LOCAL_KEY, serialized);
+      if (storage.getItem(LOCAL_KEY) !== serialized) throw new Error("No se pudo verificar el guardado.");
+      lastStored = serialized;
+      warning = "";
+    } catch {
+      storage = null;
+      warning = UNSAVED;
+    }
+  }
+
+  function actorFor(snapshot) {
+    return snapshot.players.find(({ id }) => id === activeId) ?? null;
+  }
+
+  function stateFor() {
+    const snapshot = read();
+    const actor = actorFor(snapshot);
+    return {
+      ...leagueView(snapshot, { isAdmin: !actor, playerId: actor?.id ?? null }),
+      storageWarning: warning,
+    };
+  }
+
+  function edit(path, method, body, draft, actor) {
+    const route = path.split("/").slice(2);
+    const lookupPlayer = (id) => draft.players.find((player) => player.id === id);
+    const lookupSection = (id) => draft.sections.find((section) => section.id === id);
+    const lookupRound = (id) => {
+      const round = draft.rounds.find((entry) => entry.id === id);
+      if (!round) throw localError("La semana no existe.", 404);
+      return round;
+    };
+
+    if (route[0] === "admin") {
+      if (actor) throw localError("Selecciona la vista Organización para hacer este cambio.", 403);
+      const id = Number(route[2]);
+      if (route[1] === "players" && method === "POST") {
+        const alias = localText(body.alias, "el alias", 32);
+        const team = localText(body.team, "el nombre del equipo", 52);
+        if (!lookupSection(body.sectionId)) throw localError("Elige una sección de la liga.");
+        if (draft.players.some((player) => localKey(player.alias) === localKey(alias))) {
+          throw localError("Ese alias ya está inscrito. Prueba con otro.", 409);
+        }
+        draft.players.push({ id: addLocalId(draft.players), alias, team, sectionId: body.sectionId });
+        return;
+      }
+      if (route[1] === "sections" && ["POST", "PATCH"].includes(method)) {
+        const section = method === "PATCH" ? lookupSection(id) : null;
+        if (method === "PATCH" && !section) throw localError("La sección no existe.", 404);
+        const name = localText(body.name ?? section?.name, "el nombre de la sección", 60);
+        if (draft.sections.some((entry) => entry.id !== section?.id && localKey(entry.name) === localKey(name))) {
+          throw localError("Esa sección ya está inscrita.", 409);
+        }
+        const reviewerId = body.reviewerId === undefined ? section?.reviewerId ?? null : body.reviewerId;
+        if (reviewerId !== null && (!section || lookupPlayer(reviewerId)?.sectionId !== section.id)) {
+          throw localError("Elige a un mánager de esta sección.");
+        }
+        if (section) Object.assign(section, { name, reviewerId });
+        else draft.sections.push({ id: addLocalId(draft.sections), name, reviewerId });
+        return;
+      }
+      if (route[1] === "monitors" && method === "POST") {
+        const name = localText(body.name, "el nombre del monitor", 60);
+        const { sectionId, marketValueCents = DEFAULT_MARKET_VALUE_CENTS } = body;
+        if (!lookupSection(sectionId)) throw localError("Elige una sección de la liga.");
+        if (!validMarketValue(marketValueCents)) throw localError(MARKET_VALUE_ERROR);
+        if (!addMonitorTo(draft, name, sectionId, marketValueCents)) {
+          throw localError("Ese monitor ya está registrado en esta sección.", 409);
+        }
+        return;
+      }
+      if (route[1] === "monitors" && method === "PATCH") {
+        const monitor = draft.monitors.find((entry) => entry.id === id);
+        if (!monitor) throw localError("El monitor no existe.", 404);
+        if (!validMarketValue(body.marketValueCents)) throw localError(MARKET_VALUE_ERROR);
+        monitor.marketValueCents = body.marketValueCents;
+        return;
+      }
+      if (route[1] === "settings" && method === "PATCH") {
+        const size = body.rosterSize;
+        if (!validRosterSize(size)) throw localError(`Elige un límite entre 1 y ${MAX_ROSTER_SIZE} monitores.`);
+        if (draft.rosters.some(({ monitorIds }) => monitorIds.length > size)) {
+          throw localError("Reduce las plantillas que superen el nuevo límite antes de guardarlo.", 409);
+        }
+        draft.rosterSize = size;
+        return;
+      }
+      if (route[1] === "rounds" && method === "POST") {
+        const challenge = localText(body.challenge ?? "", "el reto", 280, true);
+        const date = localDate(body.date ?? null);
+        draft.rounds.push({ id: addLocalId(draft.rounds), challenge, date, status: "planned" });
+        return;
+      }
+      if (route[1] === "rounds" && method === "PATCH") {
+        const round = lookupRound(id);
+        if ("challenge" in body) round.challenge = localText(body.challenge, "el reto", 280, true);
+        if ("date" in body) round.date = localDate(body.date);
+        if ("action" in body) {
+          const status = nextRoundStatus(round.status, body.action);
+          if (!status) throw localError("La semana cambió de estado. Actualiza la página.", 409);
+          if (round.status === "open" && status === "scoring") {
+            for (const { playerId, monitorIds } of draft.rosters) {
+              draft.roundRosters.push({ roundId: round.id, playerId, monitorIds: [...monitorIds] });
+            }
+          }
+          round.status = status;
+        }
+        return;
+      }
+    }
+
+    if (route[0] === "roster" && ["PUT", "PATCH"].includes(method)) {
+      if (!actor) throw localError("Selecciona la vista de un mánager para guardar su plantilla.", 403);
+      const currentIds = draft.rosters.find(({ playerId }) => playerId === actor.id)?.monitorIds ?? [];
+      const { monitorIds, problem } = method === "PATCH"
+        ? rosterAfterTransfer(currentIds, draft.monitors, draft.rosterSize, body.monitorId, body.action)
+        : { monitorIds: body.monitorIds, problem: rosterProblem(body.monitorIds, draft.monitors, draft.rosterSize) };
+      if (problem) throw localError(problem);
+      saveLocalEntry(draft.rosters, { playerId: actor.id, monitorIds: [...monitorIds] }, ({ playerId }) => playerId);
+      return;
+    }
+
+    if (route[0] === "rounds" && route[2] === "scores" && method === "PUT") {
+      const round = lookupRound(Number(route[1]));
+      const target = draft.monitors.find(({ id }) => id === Number(route[3]));
+      if (!target) throw localError("El monitor no existe.", 404);
+      if (actor && lookupSection(target.sectionId)?.reviewerId !== actor.id) {
+        throw localError("Solo puedes puntuar en la sección que tienes asignada.", 403);
+      }
+      if (round.status !== "scoring") throw localError("La semana debe estar en fase de puntuación.", 409);
+      const mask = contributionMask(body.categories);
+      if (mask === null) throw localError("Revisa las aportaciones seleccionadas.");
+      const note = localText(body.note ?? "", "la nota de aportaciones", 280, true);
+      saveLocalEntry(draft.scores, { roundId: round.id, monitorId: target.id, mask, note }, weeklyScoreKey);
+      return;
+    }
+    throw localError("Acción no disponible en la liga local.", 404);
+  }
+
+  async function serializedWrite(work) {
+    if (!locks?.request) return work();
+    let acquired = false;
+    try {
+      return await locks.request(LOCAL_KEY, () => {
+        acquired = true;
+        return work();
+      });
+    } catch (error) {
+      if (acquired) throw error;
+      return work();
+    }
+  }
+
+  return {
+    async request(path, method, body) {
+      if (path === "/api/state" && method === "GET") return stateFor();
+      await serializedWrite(() => {
+        const draft = JSON.parse(JSON.stringify(read()));
+        edit(path, method, body, draft, actorFor(draft));
+        write(draft);
+      });
+      return { ok: true };
+    },
+    viewAs(id) {
+      if (id !== null && !read().players.some((player) => player.id === id)) throw localError("Elige un mánager inscrito.");
+      activeId = id;
+    },
+    exportBackup() {
+      return JSON.stringify(read(), null, 2);
+    },
+    exportMonitorRegister() {
+      return JSON.stringify({
+        format: MONITOR_REGISTER_FORMAT, version: 1, monitors: monitorRegisterRows(read()),
+      }, null, 2);
+    },
+    async importMonitorRegister(serialized) {
+      const entries = readMonitorRegister(serialized);
+      return serializedWrite(() => {
+        const draft = JSON.parse(JSON.stringify(read()));
+        if (actorFor(draft)) throw localError("Selecciona la vista Organización para importar el registro.", 403);
+        const sections = new Map(draft.sections.map(({ name, id }) => [localKey(name), id]));
+        let added = 0;
+        for (const { name, section, marketValueCents } of entries) {
+          const sectionKey = localKey(section);
+          let sectionId = sections.get(sectionKey);
+          if (!sectionId) {
+            sectionId = addLocalId(draft.sections);
+            draft.sections.push({ id: sectionId, name: section, reviewerId: null });
+            sections.set(sectionKey, sectionId);
+          }
+          if (addMonitorTo(draft, name, sectionId, marketValueCents)) added++;
+        }
+        if (added) write(draft);
+        return added;
+      });
+    },
+    async importBackup(serialized) {
+      const next = normalizeCopy(serialized);
+      await serializedWrite(() => write(next));
+      activeId = null;
+    },
+  };
+}
+
+  function readBrowserCapability(read) {
+    try { return read(); } catch { return null; }
+  }
+  window.fantasyScoutLocal = createOfflineLeague({
+    storage: readBrowserCapability(() => window.localStorage),
+    locks: readBrowserCapability(() => navigator.locks),
+  });
+const app = document.querySelector("#app");
+const notice = document.querySelector("#notice");
+const localLeague = window.fantasyScoutLocal ?? null;
+const dates = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Madrid" });
+const euro = new Intl.NumberFormat("es-ES", {
+  style: "currency", currency: "EUR", useGrouping: "always", trailingZeroDisplay: "stripIfInteger",
+});
+const labels = { planned: "Programada", open: "Plantillas abiertas", scoring: "En puntuación", closed: "Cerrada" };
+const routes = { inicio: "Inicio", alineacion: "Mi equipo", mercado: "Mercado", clasificacion: "Clasificación", jornadas: "Semanas", monitores: "Monitores", gestion: "Gestión" };
+const transition = {
+  planned: { action: "open", label: "Abrir semana", hint: "Los mánagers podrán revisar su equipo para esta semana." },
+  open: { action: "lock", label: "Fijar plantillas", hint: "Guarda la plantilla de cada equipo para esta semana y habilita el registro de puntos." },
+  scoring: { action: "close", label: "Cerrar semana", hint: "Comprueba las aportaciones antes de cerrar." },
+  closed: { action: "reopen", label: "Reabrir puntuación", hint: "Podrás corregir los puntos de los monitores de esta semana." },
+};
+const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
+const h = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => entities[character]);
+const choose = (value, current) => value === current ? " selected" : "";
+const errorRegion = '<p class="form-error" data-error role="alert" hidden></p>';
+const refreshButton = '<button class="button secondary" type="button" data-command="refresh">Actualizar</button>';
+
+let state;
+let authMode = "login";
+let manageTab = "rounds";
+let lineupRound;
+let setupRound;
+let reviewRound;
+let reviewSection = 0;
+let reviewMonitor;
+let marketQuery = "";
+let marketSection = 0;
+let saving = false;
+let noticeTimer;
+let currentRoute = "inicio";
+
+const isAdmin = () => state.viewer?.role === "admin";
+const canReview = () => isAdmin() || Boolean(state.viewer?.reviewIds.length);
+const me = () => state.viewer?.player;
+const sectionName = (id) => state.sections.find((section) => section.id === id)?.name ?? "Sección";
+const monitorFor = (id) => state.monitors.find((monitor) => monitor.id === id);
+const myStanding = () => state.standings.find((entry) => entry.id === me()?.id);
+const isWeekLocked = (round) => round.status === "scoring" || round.status === "closed";
+const myWeeklyRoster = (round) => isWeekLocked(round)
+  ? state.weeklyRosters.find(({ roundId }) => roundId === round.id)?.monitorIds ?? []
+  : state.roster;
+const hasResults = (row) => row?.results.some(({ scored }) => scored);
+const activeRound = () => state.rounds.find(({ status }) => status === "open") ??
+  state.rounds.find(({ status }) => status === "scoring") ??
+  state.rounds.find(({ status }) => status === "planned") ?? state.rounds.at(-1);
+const roundFor = (id) => state.rounds.find((round) => round.id === id) ?? activeRound();
+
+function alertUser(message, error = false) {
+  clearTimeout(noticeTimer);
+  notice.textContent = message;
+  notice.classList.toggle("error", error);
+  notice.hidden = false;
+  noticeTimer = setTimeout(() => { notice.hidden = true; }, 4200);
+}
+
+async function request(path, method = "GET", body) {
+  if (localLeague) return localLeague.request(path, method, body);
+  const response = await fetch(path, {
+    method,
+    headers: body === undefined ? undefined : { "Content-Type": "application/json" },
+    body: body === undefined ? undefined : JSON.stringify(body),
+  });
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data) {
+    const error = new Error(data?.error ?? "No se pudo contactar con la liga. Inténtalo de nuevo.");
+    error.status = response.status;
+    throw error;
+  }
+  return data;
+}
+
+async function reload() {
+  state = await request("/api/state");
+}
+
+function sectionOptions(selectedId) {
+  return '<option value="">Elige una sección</option>' + state.sections.map(({ id, name }) =>
+    `<option value="${id}"${choose(id, selectedId)}>${h(name)}</option>`).join("");
+}
+
+function marketValueDecimal(cents) {
+  const digits = String(cents).padStart(3, "0");
+  return `${digits.slice(0, -2)}.${digits.slice(-2)}`;
+}
+
+function marketValueField(id, cents) {
+  const value = marketValueDecimal(cents).replace(/\.00$/, "").replace(".", ",");
+  return `<div class="field"><label for="${id}">Valor de mercado (€)</label>
+    <input id="${id}" name="marketValue" inputmode="decimal" value="${value}" autocomplete="off" required>
+  </div>`;
+}
+
+function parseMarketValue(euros) {
+  const text = euros.trim();
+  const amount = /^\d{1,3}(?:\.\d{3})+(?:,\d{1,2})?$/.test(text) ? text.replaceAll(".", "") : text;
+  const parts = /^(\d+)(?:[.,](\d{1,2}))?$/.exec(amount);
+  const cents = parts && Number(parts[1] + (parts[2] ?? "").padEnd(2, "0"));
+  if (!Number.isSafeInteger(cents)) {
+    throw new Error("Introduce un valor en euros igual o superior a cero, con hasta dos decimales.");
+  }
+  return cents;
+}
+
+function brand(link = true) {
+  const tag = link ? "a" : "div";
+  const href = link ? ' href="#inicio" data-route' : "";
+  return `<${tag} class="brand"${href}>
+    <span class="mark" aria-hidden="true"></span>
+    <span><span class="brand-name">FantasyScout</span><span class="brand-group">Grupo 108 · Lorca</span></span>
+  </${tag}>`;
+}
+
+function authScreen() {
+  const joining = authMode === "register";
+  const organizing = authMode === "admin";
+  const title = joining ? "Inscribirme en la liga" : organizing ? "Acceso de organización" : "Entra en tu equipo";
+  const intro = joining ? "Usa el código que comparta la organización del grupo."
+    : organizing ? "Gestiona monitores, semanas y puntuaciones." : "Accede con el alias que elegiste al inscribirte.";
+  const formName = joining ? "register" : organizing ? "admin-login" : "login";
+  return `<main class="auth-shell" id="main" tabindex="-1">
+    <section class="auth-story">
+      ${brand(false)}
+      <div class="story-copy">
+        <p class="eyebrow">Grupo Scout Ciudad del Sol 108</p>
+        <h1>FantasyScout</h1>
+        <p>Forma tu equipo de monitores del grupo y suma puntos por lo que hagan cada semana.</p>
+      </div>
+    </section>
+    <section class="auth-panel">
+      <div class="auth-box">
+        <h2>${title}</h2><p class="muted">${intro}</p>
+        ${organizing ? "" : `<div class="auth-switch" aria-label="Acceso a la liga">
+          <button type="button" data-auth="login" aria-pressed="${!joining}">Entrar</button>
+          <button type="button" data-auth="register" aria-pressed="${joining}">Inscribirme</button>
+        </div>`}
+        <form class="form" data-form="${formName}">
+          ${organizing ? "" : `<div class="field"><label for="alias">Alias</label><input id="alias" name="alias" autocomplete="username" maxlength="32" required></div>`}
+          ${joining ? `<div class="field"><label for="team">Nombre de tu equipo</label><input id="team" name="team" maxlength="52" required></div>
+          <div class="field"><label for="join-section">Sección del mánager</label><select id="join-section" name="sectionId" required>${sectionOptions()}</select></div>` : ""}
+          <div class="field"><label for="password">${organizing ? "Clave de organización" : "Contraseña"}</label>
+            <input id="password" name="password" type="password" autocomplete="${joining ? "new-password" : "current-password"}" minlength="${organizing ? 12 : 8}" maxlength="128" required>
+          </div>
+          ${joining ? '<div class="field"><label for="invite">Código de invitación</label><input id="invite" name="inviteCode" autocomplete="off" maxlength="128" required></div>' : ""}
+          ${errorRegion}
+          <button class="button primary" type="submit">${joining ? "Crear mi equipo" : "Entrar"}</button>
+        </form>
+        <p class="auth-link"><button type="button" class="link-button" data-auth="${organizing ? "login" : "admin"}">
+          ${organizing ? "Volver al acceso de mánagers" : "Acceso de organización"}</button></p>
+      </div>
+    </section>
+  </main>`;
+}
+
+function roundStatus(round) {
+  return `<span class="pill ${round.status}">${labels[round.status]}</span>`;
+}
+
+function roundDate(round) {
+  return round.date ? `<time class="round-date" datetime="${h(round.date)}">${dates.format(new Date(`${round.date}T12:00:00Z`))}</time>` : "";
+}
+
+function topBar() {
+  const tabs = Object.entries(routes).filter(([key]) => {
+    return (key !== "alineacion" || !isAdmin()) && (key !== "gestion" || canReview());
+  });
+  const account = localLeague ? `<div class="local-account">
+    <label for="local-view">Vista local</label>
+    <select id="local-view" data-select="local-view">
+      <option value="">Organización</option>
+      ${state.players.map(({ id, alias }) => `<option value="${id}"${choose(id, me()?.id)}>${h(alias)}</option>`).join("")}
+    </select>
+  </div>` : `<div class="account"><span>${isAdmin() ? "Organización" : h(me().alias)}</span>
+    <button type="button" class="button secondary" data-command="logout">Salir</button>
+  </div>`;
+  return `<header class="topbar"><div class="topbar-inner">
+    ${brand()}
+    <nav class="main-nav" aria-label="Navegación principal">
+      ${tabs.map(([key, label]) => `<a href="#${key}" data-route${key === currentRoute ? ' aria-current="page"' : ""}>${label}</a>`).join("")}
+    </nav>
+    ${account}
+  </div></header>`;
+}
+
+function initials(name) {
+  return name.trim().split(/\s+/).slice(0, 2).map((word) => [...word][0]).join("");
+}
+
+function personLine(title, detail) {
+  return `<div class="person-line"><span class="avatar" aria-hidden="true">${h(initials(title))}</span>
+    <span class="person-copy"><strong>${h(title)}</strong><small>${h(detail)}</small></span></div>`;
+}
+
+function rosterSummary(round) {
+  const members = myWeeklyRoster(round).map(monitorFor).filter(Boolean);
+  if (!members.length) return '<p class="empty">La plantilla de esta semana está vacía.</p>';
+  const scores = new Map(state.monitorPoints.filter(({ roundId }) => roundId === round.id)
+    .map(({ monitorId, points }) => [monitorId, points]));
+  return `<ul class="person-list">${members.map((monitor) => {
+    const points = scores.get(monitor.id);
+    return `<li>${personLine(monitor.name, sectionName(monitor.sectionId))}
+      <span class="points">${points === undefined && round.status !== "closed" ? "—" : `${points ?? 0} pt`}</span></li>`;
+  }).join("")}</ul>`;
+}
+
+function stat(label, value) {
+  return `<div class="card stat"><strong>${h(value)}</strong><span>${label}</span></div>`;
+}
+
+function topFive() {
+  if (!state.standings.length) return '<p class="empty">Los equipos aparecerán cuando se inscriban sus mánagers.</p>';
+  return `<ol class="leader-list">${state.standings.slice(0, 5).map((row) => `<li>
+    <span class="rank">${hasResults(row) ? row.rank : "—"}</span>
+    ${personLine(row.team, row.alias)}
+    <span class="points">${row.total} pt</span>
+  </li>`).join("")}</ol>`;
+}
+
+function home() {
+  const round = activeRound();
+  const standing = myStanding();
+  const weekly = standing?.results.find(({ roundId }) => roundId === round.id);
+  const needsMonitors = isAdmin() && state.monitors.length === 0;
+  const needsTeams = isAdmin() && localLeague && state.players.length === 0;
+  const preparing = needsMonitors || needsTeams;
+  const title = preparing ? "Prepara tu liga" : `Semana ${round.id}`;
+  const description = needsMonitors ? "Registra a los monitores de cada sección para que los mánagers puedan ficharlos."
+    : needsTeams ? "Inscríbete como mánager y añade los equipos de las demás personas."
+      : round.challenge || "Consulta las plantillas y los puntos de esta semana.";
+  const action = needsMonitors ? '<a class="button accent" href="#monitores" data-route>Registrar monitores</a>'
+    : needsTeams ? '<a class="button accent" href="#gestion" data-route data-panel="players">Inscribir equipos</a>'
+      : isAdmin() ? '<a class="button accent" href="#gestion" data-route data-panel="rounds">Gestionar semana</a>'
+        : `<a class="button accent" href="#alineacion" data-route data-round="${round.id}">Ver mi equipo</a>`;
+  const classification = `<section class="card">
+    <div class="card-head"><h2>Clasificación</h2><a href="#clasificacion" data-route class="link-button">Ver tabla</a></div>
+    ${topFive()}
+  </section>`;
+  return `<section class="hero"><div class="hero-content">
+    <div class="hero-meta">${preparing ? '<span class="eyebrow">FantasyScout 108</span>' : roundStatus(round)}</div>
+    <h1>${title}</h1><p>${h(description)}</p>${action}
+  </div></section>
+  <section class="stat-grid" aria-label="Datos de la liga">
+    ${isAdmin() ? stat("Equipos inscritos", state.players.length) + stat("Monitores registrados", state.monitors.length) +
+      stat("Semanas cerradas", `${state.rounds.filter(({ status }) => status === "closed").length}/${state.rounds.length}`) :
+      stat("Tu puesto", hasResults(standing) ? standing.rank : "—") + stat("Puntos totales", standing?.total ?? 0) +
+      stat(`Puntos semana ${round.id}`, weekly?.scored ? weekly.total : "—")}
+  </section>
+  ${isAdmin() ? classification : `<div class="home-grid">
+    ${classification}
+    <section class="card">
+      <div class="card-head"><h2>Tu plantilla</h2><span class="hint">Semana ${round.id}</span></div>
+      ${rosterSummary(round)}
+    </section>
+  </div>`}`;
+}
+
+function pageHead(title, description, action = "") {
+  return `<div class="page-head"><div><h1>${title}</h1><p class="muted">${description}</p></div>${action}</div>`;
+}
+
+function roundSelect(id, value) {
+  return `<div class="field"><label for="${id}">Semana</label>
+    <select id="${id}" data-select="${id}">${state.rounds.map((round) =>
+      `<option value="${round.id}"${choose(round.id, value)}>Semana ${round.id} · ${labels[round.status]}</option>`).join("")}</select>
+  </div>`;
+}
+
+function monitorPicker() {
+  const selected = new Set(state.roster);
+  const groups = state.sections.map((section) => {
+    const monitors = state.monitors.filter(({ sectionId }) => sectionId === section.id);
+    if (!monitors.length) return "";
+    return `<fieldset><legend>${h(section.name)}</legend><ul class="checklist">${monitors.map(({ id, name }) =>
+      `<li><label class="check-row"><input type="checkbox" name="monitor" value="${id}"${selected.has(id) ? " checked" : ""}><strong>${h(name)}</strong></label></li>`,
+    ).join("")}</ul></fieldset>`;
+  }).join("");
+  return `<form class="form" data-form="roster">
+    <div class="card-head"><h2>Plantilla</h2><output class="pill open" data-roster-count>${selected.size} de ${state.rosterSize}</output></div>
+    <p class="hint">Puedes fichar monitores de cualquier sección. La plantilla se conserva entre semanas.</p>
+    <div class="monitor-picker">${groups}</div>
+    ${errorRegion}<button class="button primary" type="submit">Guardar plantilla</button>
+  </form>`;
+}
+
+function lineupPage() {
+  const round = roundFor(lineupRound);
+  const result = myStanding()?.results.find(({ roundId }) => roundId === round.id);
+  return `${pageHead("Mi equipo", h(me().team), refreshButton)}
+    <div class="manage-grid">
+      <section class="card">
+        ${state.monitors.length ? monitorPicker() : '<h2>Plantilla</h2><p class="empty">La organización añadirá los monitores disponibles.</p>'}
+      </section>
+      <section class="card">
+        <h2>Puntos de la plantilla</h2>
+        ${roundSelect("lineup-round", round.id)}
+        <div class="round-meta">${roundStatus(round)}${roundDate(round)}</div>
+        ${rosterSummary(round)}
+        ${result?.scored ? `<p><strong>Total de la semana ${result.total} pt</strong></p>` :
+          '<p class="hint">La organización fija la plantilla al iniciar la semana.</p>'}
+      </section>
+    </div>`;
+}
+
+function searchName(value) {
+  return value.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLocaleLowerCase("es");
+}
+
+function marketResults() {
+  const query = searchName(marketQuery.trim());
+  const monitors = state.monitors.filter(({ name, sectionId }) =>
+    (!marketSection || sectionId === marketSection) && searchName(name).includes(query));
+  if (!monitors.length) return '<p class="empty" role="status">Ningún monitor coincide con la búsqueda.</p>';
+
+  const scoredWeeks = new Set(state.monitorPoints.map(({ roundId }) => roundId));
+  const week = state.rounds.findLast(({ id }) => scoredWeeks.has(id));
+  const weekLabel = week ? `Semana ${week.id}` : "Última semana";
+  const weekly = new Map();
+  const totals = new Map();
+  for (const { roundId, monitorId, points } of state.monitorPoints) {
+    if (roundId === week?.id) weekly.set(monitorId, points);
+    totals.set(monitorId, (totals.get(monitorId) ?? 0) + points);
+  }
+  const total = (id) => totals.get(id) ?? 0;
+  monitors.sort((a, b) => total(b.id) - total(a.id) || a.name.localeCompare(b.name, "es"));
+  const roster = new Set(state.roster);
+  const full = roster.size >= state.rosterSize;
+  const showActions = Boolean(me());
+
+  return `<div class="table-wrap" tabindex="0" role="region" aria-label="Monitores del mercado">
+    <table class="market-table" role="table"><thead role="rowgroup"><tr role="row">
+      <th scope="col" role="columnheader">Monitor</th>
+      <th scope="col" role="columnheader" class="num">Valor</th>
+      <th scope="col" role="columnheader" class="num">${weekLabel}</th>
+      <th scope="col" role="columnheader" class="num">Total</th>
+      ${showActions ? '<th scope="col" role="columnheader" class="num">Plantilla</th>' : ""}
+    </tr></thead><tbody role="rowgroup">${monitors.map(({ id, name, sectionId, marketValueCents }) => {
+      const points = weekly.get(id) ?? (week?.status === "closed" ? 0 : undefined);
+      const signed = roster.has(id);
+      const label = signed ? "Liberar" : "Fichar";
+      return `<tr role="row"${signed ? ' class="active-row"' : ""}>
+        <th scope="row" role="rowheader" class="market-monitor">${personLine(name, sectionName(sectionId))}</th>
+        <td role="cell" class="num market-value">${euro.format(marketValueDecimal(marketValueCents))}</td>
+        <td role="cell" class="num market-week"><span class="market-mobile-label" aria-hidden="true">${weekLabel}</span>
+          ${points === undefined ? "—" : `${points} pt`}</td>
+        <td role="cell" class="num points market-total"><span class="market-mobile-label" aria-hidden="true">Total</span>${total(id)} pt</td>
+        ${showActions ? `<td role="cell" class="market-action">
+          <form data-form="market-transfer" data-id="${id}" data-move="${signed ? "release" : "sign"}">
+            <button id="market-action-${id}" class="button ${signed ? "secondary" : "primary"}" type="submit"
+              aria-label="${label} a ${h(name)}"${!signed && full ? ' disabled aria-describedby="market-full"' : ""}>${label}</button>
+            ${errorRegion}
+          </form>
+        </td>` : ""}
+      </tr>`;
+    }).join("")}</tbody></table></div>`;
+}
+
+function marketPage() {
+  const manager = me();
+  const full = state.roster.length >= state.rosterSize;
+  const description = localLeague && !manager ? "Elige un mánager en Vista local para hacer fichajes."
+    : "Consulta el valor y los puntos de los monitores de todo el grupo.";
+  const action = manager ? '<a class="button secondary" href="#alineacion" data-route>Ver mi equipo</a>'
+    : state.monitors.length ? `<div class="form-actions">${refreshButton}
+      <a class="button secondary" href="#monitores" data-route>Editar valores</a></div>`
+      : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
+  if (!state.sections.some(({ id }) => id === marketSection)) marketSection = 0;
+  return `${pageHead("Mercado", description, action)}
+    <section class="card table-card" aria-label="Mercado de monitores">
+      ${state.monitors.length ? `<div class="market-controls">
+        <div class="field"><label for="market-search">Buscar monitor</label>
+          <input id="market-search" type="search" value="${h(marketQuery)}" autocomplete="off">
+        </div>
+        <div class="field"><label for="market-section">Sección</label>
+          <select id="market-section" data-select="market-section">
+            <option value="0">Todas las secciones</option>
+            ${state.sections.map(({ id, name }) => `<option value="${id}"${choose(id, marketSection)}>${h(name)}</option>`).join("")}
+          </select>
+        </div>
+        ${manager ? `<p class="market-places"><span class="pill ${full ? "" : "open"}">${state.roster.length} de ${state.rosterSize} plazas ocupadas</span>
+          ${full ? '<small id="market-full">Libera una plaza para fichar.</small>' : ""}</p>` : ""}
+      </div><div id="market-results">${marketResults()}</div>`
+      : '<p class="empty">Los monitores aparecerán aquí cuando se registren.</p>'}
+    </section>`;
+}
+
+function standingsPage() {
+  return `${pageHead("Clasificación", "Cada semana suma los puntos de los monitores de la plantilla. En empate, los equipos comparten puesto.", refreshButton)}
+    <section class="card table-card">${state.standings.length ? `<div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de clasificación">
+      <table><thead><tr><th scope="col">Puesto</th><th scope="col">Equipo</th>
+        ${state.rounds.map(({ id }) => `<th scope="col" class="num" aria-label="Semana ${id}">S${id}</th>`).join("")}
+        <th scope="col" class="num">Total</th>
+      </tr></thead><tbody>${state.standings.map((row) => `<tr${row.id === me()?.id ? ' class="active-row"' : ""}>
+        <td class="rank">${hasResults(row) ? row.rank : "—"}</td>
+        <th scope="row">${personLine(row.team, row.alias)}</th>
+        ${row.results.map((result) => `<td class="num">${result.scored ? result.total : "—"}</td>`).join("")}
+        <td class="num points">${row.total}</td>
+      </tr>`).join("")}</tbody></table>
+    </div>` : '<p class="empty">Los equipos aparecerán cuando se inscriban sus mánagers.</p>'}</section>`;
+}
+
+function roundsPage() {
+  return `${pageHead("Semanas", "Consulta el calendario y la fase de cada semana.")}
+    <div class="round-grid">${state.rounds.map((round) => `<article class="card round-card">
+      <div class="card-head"><h2>Semana ${round.id}</h2>${roundStatus(round)}</div>
+      ${roundDate(round)}${round.challenge ? `<p>${h(round.challenge)}</p>` : ""}
+      ${isAdmin() ? "" : `<a href="#alineacion" data-route data-round="${round.id}" class="button secondary">Ver mi equipo</a>`}
+    </article>`).join("")}</div>
+    <section class="card">
+      <div class="card-head"><h2>Cómo se puntúa</h2></div>
+      <div class="rules-grid"><ul class="rule-list">${state.contributions.map(({ label, description, points }) =>
+        `<li><strong>${label}</strong><small>${description}</small><span class="pill open">+${points}</span></li>`).join("")}</ul>
+      <div><p>Cada monitor puede sumar una vez por categoría y semana. Cada aportación cuenta en una sola categoría.</p>
+        <p>Todos los equipos que tengan fichado a un monitor reciben los puntos que consiga esa semana.</p></div></div>
+    </section>`;
+}
+
+function manageRounds() {
+  const round = roundFor(setupRound);
+  const next = transition[round.status];
+  return `<div class="manage-grid">
+    <section class="card">
+      <h2>Calendario</h2>
+      ${roundSelect("setup-round", round.id)}
+      <form class="form" data-form="round" data-id="${round.id}">
+        <div class="field"><label for="round-date">Fecha de la semana</label><input id="round-date" name="date" type="date" value="${h(round.date)}"></div>
+        <div class="field"><label for="round-challenge">Reto común</label><textarea id="round-challenge" name="challenge" maxlength="280" placeholder="Opcional">${h(round.challenge)}</textarea></div>
+        ${errorRegion}<button class="button secondary" type="submit">Guardar calendario</button>
+      </form>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Fase de la semana</h2>${roundStatus(round)}</div>
+      <p class="muted">${next.hint}</p>
+      <form class="form" data-form="phase" data-id="${round.id}" data-action="${next.action}">
+        ${errorRegion}<button class="button primary" type="submit">${next.label}</button>
+      </form>
+    </section>
+  </div>
+  <section class="card">
+    <div class="card-head"><h2>Añadir semana</h2></div>
+    <form class="form" data-form="add-round">
+      <div class="form-columns">
+        <div class="field"><label for="next-date">Fecha de la nueva semana</label><input id="next-date" name="date" type="date"></div>
+        <div class="field"><label for="next-challenge">Reto de la nueva semana</label><input id="next-challenge" name="challenge" maxlength="280" placeholder="Opcional"></div>
+      </div>
+      ${errorRegion}<button class="button secondary" type="submit">Añadir semana</button>
+    </form>
+  </section>`;
+}
+
+function manageSections() {
+  return `<section class="card">
+    <div class="card-head"><h2>Añadir sección</h2></div>
+    <form class="form" data-form="add-section">
+      <div class="field"><label for="new-section">Nombre de la sección</label><input id="new-section" name="name" maxlength="60" required></div>
+      ${errorRegion}<button class="button primary" type="submit">Añadir sección</button>
+    </form>
+  </section>
+  <div class="section-grid">${state.sections.map((section) => {
+    const members = state.players.filter(({ sectionId }) => sectionId === section.id);
+    const count = state.monitors.filter(({ sectionId }) => sectionId === section.id).length;
+    return `<section class="card">
+      <div class="card-head"><h2>${h(section.name)}</h2><span class="pill">${count} monitores</span></div>
+      <form class="form" data-form="edit-section" data-id="${section.id}">
+        <div class="field"><label for="section-${section.id}">Nombre</label><input id="section-${section.id}" name="name" value="${h(section.name)}" maxlength="60" required></div>
+        <div class="field"><label for="reviewer-${section.id}">Responsable de puntuación</label><select id="reviewer-${section.id}" name="reviewerId">
+          <option value="">Organización</option>
+          ${members.map(({ id, alias }) => `<option value="${id}"${choose(id, section.reviewerId)}>${h(alias)}</option>`).join("")}
+        </select></div>
+        ${errorRegion}<button class="button secondary" type="submit">Guardar sección</button>
+      </form>
+    </section>`;
+  }).join("")}</div>`;
+}
+
+function monitorRegisterPage() {
+  const monitors = [...state.monitors].sort((a, b) => a.name.localeCompare(b.name, "es") || a.sectionId - b.sectionId);
+  const organization = isAdmin();
+  const canSaveCopy = localLeague && organization;
+  const defaultSection = state.sections.length === 1 ? state.sections[0].id : undefined;
+  const description = localLeague && !isAdmin()
+    ? "En Vista local, elige Organización para registrar un monitor."
+    : canSaveCopy && !state.storageWarning ? "El registro se guarda en este navegador." : "Monitores disponibles para las plantillas.";
+  const download = canSaveCopy && monitors.length
+    ? '<button class="button secondary" type="button" data-command="export-monitors">Descargar registro</button>' : "";
+  const list = `<section class="card table-card">
+    ${monitors.length ? `<div class="table-wrap"><table aria-label="Registro de monitores">
+      <thead><tr><th scope="col">Nombre</th><th scope="col">Sección</th><th scope="col" class="num">Valor de mercado</th></tr></thead>
+      <tbody>${monitors.map(({ id, name, sectionId, marketValueCents }) => `<tr>
+        <th scope="row">${h(name)}</th><td>${h(sectionName(sectionId))}</td>
+        <td class="num"><strong class="market-value">${euro.format(marketValueDecimal(marketValueCents))}</strong>
+          ${organization ? `<details class="monitor-value-editor">
+            <summary id="edit-monitor-${id}" aria-label="Editar valor de ${h(name)}">Editar valor</summary>
+            <form class="form" data-form="edit-monitor-value" data-id="${id}">
+              ${marketValueField(`monitor-value-${id}`, marketValueCents)}
+              ${errorRegion}<button class="button secondary" type="submit">Guardar valor</button>
+            </form>
+          </details>` : ""}
+        </td>
+      </tr>`).join("")}</tbody>
+    </table></div>` : '<p class="empty">El registro está vacío.</p>'}
+  </section>`;
+  return `${pageHead("Monitores registrados", description, download)}
+  ${organization ? `<div class="manage-grid">
+    ${list}
+    <section class="card">
+      <h2>Registrar monitor</h2>
+      <form class="form" data-form="add-monitor">
+        <div class="field"><label for="monitor-name">Nombre del monitor</label><input id="monitor-name" name="name" maxlength="60" required></div>
+        <div class="field"><label for="monitor-section">Sección del monitor</label><select id="monitor-section" name="sectionId" required>${sectionOptions(defaultSection)}</select></div>
+        ${marketValueField("new-monitor-value", state.defaultMarketValueCents)}
+        ${errorRegion}<button class="button primary" type="submit">Registrar monitor</button>
+      </form>
+    </section>
+  </div>` : list}
+  ${canSaveCopy ? `<section class="card">
+    <div class="card-head"><h2>Importar monitores</h2></div>
+    <form class="form" data-form="import-monitors">
+      <p class="hint">Carga un registro de monitores o una copia de FantasyScout para añadir los monitores que falten.</p>
+      <div class="field"><label for="monitor-register">Archivo JSON</label>
+        <input id="monitor-register" name="copy" type="file" accept=".json,application/json" required>
+      </div>
+      ${errorRegion}<button class="button secondary" type="submit">Importar registro</button>
+    </form>
+  </section>` : ""}`;
+}
+
+function managePlayers() {
+  const teams = `<section class="card">
+    <div class="card-head"><h2>Equipos inscritos</h2></div>
+    ${state.players.length ? `<ul class="person-list">${state.players.map(({ alias, team, sectionId }) =>
+      `<li>${personLine(team, alias)}<span class="person-slot">${h(sectionName(sectionId))}</span></li>`).join("")}</ul>` :
+      '<p class="empty">Los mánagers inscritos aparecerán aquí.</p>'}
+  </section>`;
+  return `<section class="card">
+    <div class="card-head"><h2>Límite de plantilla</h2></div>
+    <form class="form" data-form="settings">
+      <div class="field"><label for="roster-size">Monitores por equipo</label>
+        <input id="roster-size" name="rosterSize" type="number" min="1" max="${state.rosterLimit}" value="${state.rosterSize}" required>
+      </div>
+      ${errorRegion}<button class="button secondary" type="submit">Guardar límite</button>
+    </form>
+  </section>
+  ${localLeague ? `<div class="manage-grid">
+    <section class="card">
+      <h2>Inscribir mánager</h2>
+      <form class="form" data-form="add-player">
+        <div class="field"><label for="local-alias">Alias del mánager</label><input id="local-alias" name="alias" maxlength="32" required></div>
+        <div class="field"><label for="local-team">Nombre del equipo</label><input id="local-team" name="team" maxlength="52" required></div>
+        <div class="field"><label for="local-section">Sección del mánager</label><select id="local-section" name="sectionId" required>${sectionOptions()}</select></div>
+        ${errorRegion}<button class="button primary" type="submit">Crear equipo</button>
+      </form>
+    </section>${teams}</div>` : teams}`;
+}
+
+function manageBackup() {
+  return `<div class="manage-grid">
+    <section class="card">
+      <h2>Guardar una copia</h2>
+      <p class="muted">Descarga los monitores, los equipos, las plantillas y los puntos en un archivo JSON.</p>
+      <button class="button primary" type="button" data-command="export-backup">Descargar copia</button>
+    </section>
+    <section class="card">
+      <h2>Cargar una copia</h2>
+      <p class="muted">La copia sustituirá la liga guardada en este navegador.</p>
+      <form class="form" data-form="import-backup">
+        <div class="field"><label for="local-backup">Copia de FantasyScout</label>
+          <input id="local-backup" name="copy" type="file" accept=".json,application/json" required>
+        </div>
+        ${errorRegion}<button class="button secondary" type="submit">Importar y sustituir la liga</button>
+      </form>
+    </section>
+  </div>`;
+}
+
+function manageScores() {
+  const sections = state.sections.filter(({ id }) => state.viewer.reviewIds.includes(id));
+  const round = roundFor(reviewRound ?? state.rounds.find(({ status }) => status === "scoring")?.id);
+  const members = state.monitors.filter(({ sectionId }) =>
+    state.viewer.reviewIds.includes(sectionId) && (!reviewSection || reviewSection === sectionId));
+  const target = members.find(({ id }) => id === reviewMonitor) ?? members[0];
+  const scores = new Map(state.reviewScores.filter(({ roundId }) => roundId === round.id).map((score) => [score.monitorId, score]));
+  const saved = target ? scores.get(target.id) : null;
+  const enabled = round.status === "scoring";
+  const number = members.filter(({ id }) => scores.has(id)).length;
+  const total = state.contributions.reduce((points, { points: value }, index) =>
+    points + (saved?.mask & (1 << index) ? value : 0), 0);
+
+  return `<div class="manage-grid">
+    <section class="card">
+      <div class="card-head"><h2>Semana y sección</h2>${roundStatus(round)}</div>
+      ${roundSelect("review-round", round.id)}
+      <div class="field"><label for="review-section">Sección</label><select id="review-section" data-select="review-section">
+        <option value="0">Todas mis secciones</option>
+        ${sections.map(({ id, name }) => `<option value="${id}"${choose(id, reviewSection)}>${h(name)}</option>`).join("")}
+      </select></div>
+      <div class="field"><label for="review-monitor">Monitor</label><select id="review-monitor" data-select="review-monitor"${target ? "" : " disabled"}>
+        ${members.length ? members.map(({ id, name, sectionId }) => `<option value="${id}"${choose(id, target.id)}>${h(name)} · ${h(sectionName(sectionId))}${scores.has(id) ? " · registrado" : ""}</option>`).join("") : '<option>Sin monitores registrados</option>'}
+      </select></div>
+      <p class="hint">${number} de ${members.length} puntuaciones registradas.</p>
+    </section>
+    <section class="card">
+      <div class="card-head"><h2>Aportaciones ${target ? `de ${h(target.name)}` : ""}</h2>${target ? `<span class="pill open" data-points>${total} pt</span>` : ""}</div>
+      ${target ? `<form class="form" data-form="score" data-id="${round.id}" data-monitor="${target.id}">
+        ${enabled ? "" : '<p class="hint">La organización puede iniciar la puntuación desde Semanas.</p>'}
+        <ul class="checklist">${state.contributions.map(({ id, label, description, points }, index) => `<li><label class="check-row">
+          <input type="checkbox" name="category" value="${id}" data-value="${points}"${saved?.mask & (1 << index) ? " checked" : ""}${enabled ? "" : " disabled"}>
+          <span><strong>${label}</strong><small>${description}</small></span><span class="points">+${points}</span>
+        </label></li>`).join("")}</ul>
+        <div class="field"><label for="score-note">Nota de aportaciones</label><textarea id="score-note" name="note" maxlength="280" placeholder="Opcional"${enabled ? "" : " disabled"}>${h(saved?.note)}</textarea></div>
+        ${errorRegion}<button class="button primary" type="submit"${enabled ? "" : " disabled"}>Guardar puntuación</button>
+      </form>` : '<p class="empty">Selecciona un monitor para registrar sus puntos.</p>'}
+    </section>
+  </div>`;
+}
+
+function managementPage() {
+  const tabs = [["rounds", "Semanas"], ["scores", "Puntuaciones"], ["monitors", "Monitores"], ["players", "Equipos"], ["sections", "Secciones"]];
+  if (localLeague) tabs.push(["backup", "Copia"]);
+  const panel = isAdmin() ? manageTab : "scores";
+  const panels = {
+    rounds: manageRounds, scores: manageScores, sections: manageSections,
+    players: managePlayers, backup: manageBackup,
+  };
+  return `${pageHead("Gestión", isAdmin() ? "Organiza las semanas y registra el rendimiento de los monitores." : "Registra las aportaciones de tu sección.")}
+    ${isAdmin() ? `<div class="segmented" aria-label="Panel de gestión">${tabs.map(([key, label]) =>
+      key === "monitors" ? '<a href="#monitores" data-route>Monitores</a>'
+        : `<button type="button" data-manage="${key}" aria-pressed="${panel === key}">${label}</button>`).join("")}</div>` : ""}
+    ${panels[panel]()}`;
+}
+
+function render() {
+  if (!state.viewer) {
+    app.innerHTML = authScreen();
+    return;
+  }
+  const requested = location.hash.slice(1);
+  if (Object.hasOwn(routes, requested)) currentRoute = requested;
+  if ((currentRoute === "gestion" && !canReview()) || (currentRoute === "alineacion" && isAdmin())) {
+    currentRoute = "inicio";
+  }
+  const pages = {
+    inicio: home, alineacion: lineupPage, mercado: marketPage, clasificacion: standingsPage, jornadas: roundsPage,
+    monitores: monitorRegisterPage, gestion: managementPage,
+  };
+  const storageWarning = state.storageWarning ? `<p class="local-warning" role="status">${h(state.storageWarning)}</p>` : "";
+  app.innerHTML = `${topBar()}<main class="workspace" id="main" tabindex="-1">${storageWarning}${pages[currentRoute]()}</main>
+    <footer class="footer">Grupo Scout Ciudad del Sol 108</footer>`;
+}
+
+async function start() {
+  try {
+    await reload();
+    render();
+  } catch {
+    app.innerHTML = '<main class="loading" id="main" tabindex="-1"><h1>FantasyScout</h1><p>No se pudo cargar la liga.</p><button class="button primary" data-command="refresh">Volver a intentar</button></main>';
+  }
+}
+
+function resetRoute(route = "inicio") {
+  currentRoute = route;
+  authMode = "login";
+  manageTab = "rounds";
+  lineupRound = setupRound = reviewRound = reviewMonitor = undefined;
+  reviewSection = 0;
+  if (route !== "mercado") {
+    marketQuery = "";
+    marketSection = 0;
+  }
+  history.replaceState(null, "", `#${route}`);
+}
+
+const actions = {
+  login: ({ alias, password }) => ["/api/login", "POST", { alias, password }],
+  "admin-login": ({ password }) => ["/api/login", "POST", { role: "admin", password }],
+  register: (values) => ["/api/register", "POST", { ...values, sectionId: Number(values.sectionId) }, "Equipo inscrito."],
+  roster: (_, form, data) => ["/api/roster", "PUT", { monitorIds: data.getAll("monitor").map(Number) }, "Plantilla guardada."],
+  "market-transfer": (_, { dataset }) => ["/api/roster", "PATCH",
+    { monitorId: Number(dataset.id), action: dataset.move }, dataset.move === "sign" ? "Monitor fichado." : "Plaza liberada."],
+  round: (values, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", values, "Calendario guardado."],
+  "add-round": (values) => ["/api/admin/rounds", "POST", values, "Semana añadida."],
+  phase: (_, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", { action: form.dataset.action }, "Fase actualizada."],
+  "add-player": ({ alias, team, sectionId }) => ["/api/admin/players", "POST", { alias, team, sectionId: Number(sectionId) }, "Equipo inscrito."],
+  "add-monitor": ({ name, sectionId, marketValue }) => ["/api/admin/monitors", "POST",
+    { name, sectionId: Number(sectionId), marketValueCents: parseMarketValue(marketValue) }, "Monitor registrado."],
+  "edit-monitor-value": ({ marketValue }, form) => [`/api/admin/monitors/${form.dataset.id}`, "PATCH",
+    { marketValueCents: parseMarketValue(marketValue) }, "Valor de mercado guardado."],
+  settings: ({ rosterSize }) => ["/api/admin/settings", "PATCH", { rosterSize: Number(rosterSize) }, "Límite actualizado."],
+  "add-section": (values) => ["/api/admin/sections", "POST", values, "Sección añadida."],
+  "edit-section": ({ name, reviewerId }, form) => [`/api/admin/sections/${form.dataset.id}`, "PATCH",
+    { name, reviewerId: reviewerId ? Number(reviewerId) : null }, "Sección guardada."],
+  score: ({ note }, form, data) => [`/api/rounds/${form.dataset.id}/scores/${form.dataset.monitor}`, "PUT",
+    { categories: data.getAll("category"), note }, "Puntuación guardada."],
+};
+
+async function saveForm(form, button) {
+  const formName = form.dataset.form;
+  const action = actions[formName];
+  const importing = localLeague && ["import-backup", "import-monitors"].includes(formName);
+  if ((!action && !importing) || saving) return;
+  const errorBox = form.querySelector("[data-error]");
+  if (!form.reportValidity()) {
+    const label = form.querySelector(":invalid")?.labels?.[0]?.textContent.trim();
+    errorBox.textContent = label ? `Revisa el campo «${label}».` : "Revisa los campos del formulario.";
+    errorBox.hidden = false;
+    return;
+  }
+  saving = button.disabled = true;
+  errorBox.hidden = true;
+  try {
+    const data = new FormData(form);
+    let message;
+    if (importing) {
+      const copy = data.get("copy");
+      if (!copy?.size || copy.size > 2 * 1024 * 1024) throw new Error("Elige una copia JSON de hasta 2 MB.");
+      const contents = await copy.text();
+      if (formName === "import-monitors") {
+        const added = await localLeague.importMonitorRegister(contents);
+        message = added === 1 ? "1 monitor añadido." : `${added} monitores añadidos.`;
+      } else {
+        await localLeague.importBackup(contents);
+        message = "Copia cargada.";
+      }
+    } else {
+      const [path, method, body, feedback] = action(Object.fromEntries(data), form, data);
+      await request(path, method, body);
+      message = feedback;
+    }
+    await reload();
+    if (formName === "add-monitor" && state.storageWarning) message = "Monitor añadido a esta sesión. Descarga el registro para conservarlo.";
+    if (formName === "edit-monitor-value" && state.storageWarning) {
+      message = "Valor actualizado en esta sesión. Descarga el registro para conservarlo.";
+    }
+    if (["login", "admin-login", "register"].includes(formName)) resetRoute();
+    render();
+    if (formName === "add-monitor" && currentRoute === "monitores") {
+      document.getElementById("monitor-name")?.focus({ preventScroll: true });
+    }
+    if (formName === "edit-monitor-value" && currentRoute === "monitores") {
+      document.getElementById(`edit-monitor-${form.dataset.id}`)?.focus({ preventScroll: true });
+    }
+    if (formName === "market-transfer" && currentRoute === "mercado") {
+      const next = document.getElementById(`market-action-${form.dataset.id}`);
+      (next?.disabled ? document.getElementById("market-search") : next)?.focus({ preventScroll: true });
+    }
+    if (message) alertUser(message);
+  } catch (error) {
+    if (error.status === 401 && state.viewer) {
+      await start();
+      alertUser(error.message, true);
+    } else if (form.isConnected) {
+      errorBox.textContent = error.message;
+      errorBox.hidden = false;
+    } else {
+      alertUser(error.message, true);
+    }
+  } finally {
+    saving = button.disabled = false;
+  }
+}
+
+app.addEventListener("submit", (event) => {
+  const form = event.target;
+  if (!form.dataset.form) return;
+  event.preventDefault();
+  const button = event.submitter ?? form.querySelector('button[type="submit"]');
+  if (button) void saveForm(form, button);
+});
+
+app.addEventListener("keydown", (event) => {
+  if (!localLeague || event.key !== "Enter" || event.isComposing || event.repeat) return;
+  const input = event.target;
+  if (input.tagName !== "INPUT" || !["text", "number", "date"].includes(input.type) || !input.form?.dataset.form) return;
+  const button = input.form.querySelector('button[type="submit"]');
+  if (!button) return;
+  event.preventDefault();
+  button.click();
+});
+
+app.addEventListener("input", (event) => {
+  if (event.target.id !== "market-search") return;
+  marketQuery = event.target.value;
+  document.getElementById("market-results").innerHTML = marketResults();
+});
+
+app.addEventListener("change", async (event) => {
+  const control = event.target;
+  if (control.dataset.select === "local-view" && localLeague) {
+    if (saving) {
+      control.value = me()?.id ?? "";
+      return;
+    }
+    saving = control.disabled = true;
+    try {
+      localLeague.viewAs(control.value ? Number(control.value) : null);
+      await reload();
+      resetRoute(currentRoute === "mercado" ? "mercado" : "inicio");
+      render();
+      document.getElementById("local-view")?.focus({ preventScroll: true });
+    } catch (error) {
+      alertUser(error.message, true);
+    } finally {
+      saving = control.disabled = false;
+    }
+    return;
+  }
+  if (control.name === "monitor") {
+    const count = control.form.querySelectorAll('input[name="monitor"]:checked').length;
+    control.form.querySelector("[data-roster-count]").textContent = `${count} de ${state.rosterSize}`;
+    return;
+  }
+  if (control.name === "category") {
+    const points = Array.from(control.form.querySelectorAll('input[name="category"]:checked'))
+      .reduce((sum, checked) => sum + Number(checked.dataset.value), 0);
+    control.closest("section").querySelector("[data-points]").textContent = `${points} pt`;
+    return;
+  }
+  const value = Number(control.value);
+  switch (control.dataset.select) {
+    case "market-section":
+      marketSection = value;
+      document.getElementById("market-results").innerHTML = marketResults();
+      return;
+    case "lineup-round": lineupRound = value; break;
+    case "setup-round": setupRound = value; break;
+    case "review-round": reviewRound = value; break;
+    case "review-section": reviewSection = value; reviewMonitor = undefined; break;
+    case "review-monitor": reviewMonitor = value; break;
+    default: return;
+  }
+  render();
+  document.getElementById(control.id)?.focus({ preventScroll: true });
+});
+
+function downloadJson(contents, name) {
+  const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+app.addEventListener("click", async (event) => {
+  const control = event.target.closest("button, a");
+  if (!control) return;
+  if (localLeague && control.type === "submit" && control.form?.dataset.form) {
+    event.preventDefault();
+    await saveForm(control.form, control);
+    return;
+  }
+  if (control.hasAttribute("data-route")) {
+    if (control.dataset.round) lineupRound = Number(control.dataset.round);
+    if (control.dataset.panel) manageTab = control.dataset.panel;
+    if (control.getAttribute("href") === location.hash) render();
+  } else if (control.dataset.auth) {
+    authMode = control.dataset.auth;
+    render();
+    app.querySelector("input")?.focus();
+  } else if (control.dataset.manage) {
+    manageTab = control.dataset.manage;
+    render();
+    app.querySelector('[data-manage][aria-pressed="true"]')?.focus({ preventScroll: true });
+  } else if (control.dataset.command && !saving) {
+    saving = control.disabled = true;
+    try {
+      if (control.dataset.command === "export-backup" && localLeague) {
+        downloadJson(localLeague.exportBackup(), "fantasyscout-108-copia.json");
+        return;
+      }
+      if (control.dataset.command === "export-monitors" && localLeague) {
+        downloadJson(localLeague.exportMonitorRegister(), "fantasyscout-monitores.json");
+        return;
+      }
+      if (control.dataset.command === "logout") {
+        await request("/api/logout", "POST", {});
+        resetRoute();
+      }
+      await reload();
+      render();
+    } catch (error) {
+      alertUser(error.message, true);
+    } finally {
+      saving = control.disabled = false;
+    }
+  }
+});
+
+window.addEventListener("hashchange", () => {
+  if (state?.viewer && location.hash !== "#main") {
+    render();
+    document.querySelector("#main")?.focus({ preventScroll: true });
+    window.scrollTo(0, 0);
+  }
+});
+
+start();
+
+})();
+</script>
+  </body>
+</html>

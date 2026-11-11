@@ -1,4 +1,4 @@
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 
 const root = new URL("../", import.meta.url);
 const [html, css, league, offline, app] = await Promise.all(
@@ -32,4 +32,9 @@ output = replaceAsset(output, "<p>Cargando la liga…</p>", "<p>Descarga este HT
 output = replaceAsset(output, '<link rel="stylesheet" href="/styles.css">', `<style>\n${css}</style>`);
 output = replaceAsset(output, '<script type="module" src="/app.js"></script>',
   `<script>\n${script.replace(/<\/script/gi, "<\\/script")}\n</script>`);
-await writeFile(new URL("index.html", root), output);
+const pages = new URL("docs/", root);
+await mkdir(pages, { recursive: true });
+await Promise.all([
+  writeFile(new URL("index.html", root), output),
+  writeFile(new URL("index.html", pages), output),
+]);

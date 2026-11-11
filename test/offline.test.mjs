@@ -169,7 +169,11 @@ test("el registro avisa si el navegador acepta el guardado pero descarta los cam
 });
 
 test("index.html arranca sin red y registra un monitor por clic sin enviar el formulario", async () => {
-  const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
+  const [html, pagesHtml] = await Promise.all([
+    readFile(new URL("../index.html", import.meta.url), "utf8"),
+    readFile(new URL("../docs/index.html", import.meta.url), "utf8"),
+  ]);
+  assert.equal(pagesHtml, html);
   assert.doesNotMatch(html, /<script[^>]+\bsrc=|<link[^>]+\bhref=|type="module"/i);
   assert.match(html, /<style>[\s\S]+<\/style>/);
   const script = html.match(/<script>([\s\S]+)<\/script>/)?.[1];
