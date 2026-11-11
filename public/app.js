@@ -3,7 +3,7 @@ const notice = document.querySelector("#notice");
 const localLeague = window.fantasyScoutLocal ?? null;
 const dates = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Madrid" });
 const labels = { planned: "Programada", open: "Plantillas abiertas", scoring: "En puntuación", closed: "Cerrada" };
-const routes = { inicio: "Inicio", alineacion: "Mi equipo", clasificacion: "Clasificación", jornadas: "Semanas", gestion: "Gestión" };
+const routes = { inicio: "Inicio", alineacion: "Mi equipo", clasificacion: "Clasificación", jornadas: "Semanas", monitores: "Monitores", gestion: "Gestión" };
 const transition = {
   planned: { action: "open", label: "Abrir semana", hint: "Los mánagers podrán revisar su equipo para esta semana." },
   open: { action: "lock", label: "Fijar plantillas", hint: "Guarda la plantilla de cada equipo para esta semana y habilita el registro de puntos." },
@@ -202,7 +202,7 @@ function home() {
   const description = needsMonitors ? "Registra a los monitores de cada sección para que los mánagers puedan ficharlos."
     : needsTeams ? "Inscríbete como mánager y añade los equipos de las demás personas."
       : round.challenge || "Consulta las plantillas y los puntos de esta semana.";
-  const action = needsMonitors ? '<a class="button accent" href="#gestion" data-route data-panel="monitors">Registrar monitores</a>'
+  const action = needsMonitors ? '<a class="button accent" href="#monitores" data-route>Registrar monitores</a>'
     : needsTeams ? '<a class="button accent" href="#gestion" data-route data-panel="players">Inscribir equipos</a>'
       : isAdmin() ? '<a class="button accent" href="#gestion" data-route data-panel="rounds">Gestionar semana</a>'
         : `<a class="button accent" href="#alineacion" data-route data-round="${round.id}">Ver mi equipo</a>`;
@@ -365,8 +365,23 @@ function manageSections() {
   }).join("")}</div>`;
 }
 
-function manageMonitors() {
-  return `<div class="manage-grid">
+function monitorRegisterPage() {
+  const monitors = [...state.monitors].sort((a, b) => a.name.localeCompare(b.name, "es") || a.sectionId - b.sectionId);
+  const canSaveCopy = localLeague && isAdmin();
+  const description = canSaveCopy && !state.storageWarning
+    ? "El registro se guarda en este navegador." : "Monitores disponibles para las plantillas.";
+  const download = canSaveCopy && monitors.length
+    ? '<button class="button secondary" type="button" data-command="export-monitors">Descargar registro</button>' : "";
+  const list = `<section class="card table-card">
+    ${monitors.length ? `<div class="table-wrap"><table aria-label="Registro de monitores">
+      <thead><tr><th scope="col">Nombre</th><th scope="col">Sección</th></tr></thead>
+      <tbody>${monitors.map(({ name, sectionId }) =>
+        `<tr><th scope="row">${h(name)}</th><td>${h(sectionName(sectionId))}</td></tr>`).join("")}</tbody>
+    </table></div>` : '<p class="empty">El registro está vacío.</p>'}
+  </section>`;
+  return `${pageHead("Monitores registrados", description, download)}
+  ${isAdmin() ? `<div class="manage-grid">
+    ${list}
     <section class="card">
       <h2>Registrar monitor</h2>
       <form class="form" data-form="add-monitor">
@@ -375,12 +390,17 @@ function manageMonitors() {
         ${errorRegion}<button class="button primary" type="submit">Registrar monitor</button>
       </form>
     </section>
-    <section class="card">
-      <h2>Monitores disponibles</h2>
-      ${state.monitors.length ? `<ul class="person-list">${state.monitors.map(({ name, sectionId }) =>
-        `<li>${personLine(name, sectionName(sectionId))}</li>`).join("")}</ul>` : '<p class="empty">Registra al primer monitor de la liga.</p>'}
-    </section>
-  </div>`;
+  </div>` : list}
+  ${canSaveCopy ? `<section class="card">
+    <div class="card-head"><h2>Importar monitores</h2></div>
+    <form class="form" data-form="import-monitors">
+      <p class="hint">Carga un registro de monitores o una copia de FantasyScout para añadir los monitores que falten.</p>
+      <div class="field"><label for="monitor-register">Archivo JSON</label>
+        <input id="monitor-register" name="copy" type="file" accept=".json,application/json" required>
+      </div>
+      ${errorRegion}<button class="button secondary" type="submit">Importar registro</button>
+    </form>
+  </section>` : ""}`;
 }
 
 function managePlayers() {
@@ -477,12 +497,13 @@ function managementPage() {
   if (localLeague) tabs.push(["backup", "Copia"]);
   const panel = isAdmin() ? manageTab : "scores";
   const panels = {
-    rounds: manageRounds, scores: manageScores, sections: manageSections, monitors: manageMonitors,
+    rounds: manageRounds, scores: manageScores, sections: manageSections,
     players: managePlayers, backup: manageBackup,
   };
   return `${pageHead("Gestión", isAdmin() ? "Organiza las semanas y registra el rendimiento de los monitores." : "Registra las aportaciones de tu sección.")}
     ${isAdmin() ? `<div class="segmented" aria-label="Panel de gestión">${tabs.map(([key, label]) =>
-      `<button type="button" data-manage="${key}" aria-pressed="${panel === key}">${label}</button>`).join("")}</div>` : ""}
+      key === "monitors" ? '<a href="#monitores" data-route>Monitores</a>'
+        : `<button type="button" data-manage="${key}" aria-pressed="${panel === key}">${label}</button>`).join("")}</div>` : ""}
     ${panels[panel]()}`;
 }
 
@@ -496,7 +517,10 @@ function render() {
   if ((currentRoute === "gestion" && !canReview()) || (currentRoute === "alineacion" && isAdmin())) {
     currentRoute = "inicio";
   }
-  const pages = { inicio: home, alineacion: lineupPage, clasificacion: standingsPage, jornadas: roundsPage, gestion: managementPage };
+  const pages = {
+    inicio: home, alineacion: lineupPage, clasificacion: standingsPage, jornadas: roundsPage,
+    monitores: monitorRegisterPage, gestion: managementPage,
+  };
   const storageWarning = state.storageWarning ? `<p class="local-warning" role="status">${h(state.storageWarning)}</p>` : "";
   app.innerHTML = `${topBar()}<main class="workspace" id="main" tabindex="-1">${storageWarning}${pages[currentRoute]()}</main>
     <footer class="footer">Grupo Scout Ciudad del Sol 108</footer>`;
@@ -540,8 +564,9 @@ const actions = {
 
 app.addEventListener("submit", async (event) => {
   const form = event.target;
-  const action = actions[form.dataset.form];
-  const importing = localLeague && form.dataset.form === "import-backup";
+  const formName = form.dataset.form;
+  const action = actions[formName];
+  const importing = localLeague && ["import-backup", "import-monitors"].includes(formName);
   if (!action && !importing) return;
   event.preventDefault();
   if (saving) return;
@@ -555,15 +580,22 @@ app.addEventListener("submit", async (event) => {
     if (importing) {
       const copy = data.get("copy");
       if (!copy?.size || copy.size > 2 * 1024 * 1024) throw new Error("Elige una copia JSON de hasta 2 MB.");
-      await localLeague.importBackup(await copy.text());
-      message = "Copia cargada.";
+      const contents = await copy.text();
+      if (formName === "import-monitors") {
+        const added = await localLeague.importMonitorRegister(contents);
+        message = added === 1 ? "1 monitor añadido." : `${added} monitores añadidos.`;
+      } else {
+        await localLeague.importBackup(contents);
+        message = "Copia cargada.";
+      }
     } else {
       const [path, method, body, feedback] = action(Object.fromEntries(data), form, data);
       await request(path, method, body);
       message = feedback;
     }
     await reload();
-    if (["login", "admin-login", "register"].includes(form.dataset.form)) resetRoute();
+    if (formName === "add-monitor" && state.storageWarning) message = "Monitor añadido a esta sesión. Descarga el registro para conservarlo.";
+    if (["login", "admin-login", "register"].includes(formName)) resetRoute();
     render();
     if (message) alertUser(message);
   } catch (error) {
@@ -624,6 +656,17 @@ app.addEventListener("change", async (event) => {
   document.getElementById(control.id)?.focus({ preventScroll: true });
 });
 
+function downloadJson(contents, name) {
+  const url = URL.createObjectURL(new Blob([contents], { type: "application/json" }));
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
 app.addEventListener("click", async (event) => {
   const control = event.target.closest("button, a");
   if (!control) return;
@@ -643,14 +686,11 @@ app.addEventListener("click", async (event) => {
     saving = control.disabled = true;
     try {
       if (control.dataset.command === "export-backup" && localLeague) {
-        const url = URL.createObjectURL(new Blob([localLeague.exportBackup()], { type: "application/json" }));
-        const link = document.createElement("a");
-        link.href = url;
-        link.download = "fantasyscout-108-copia.json";
-        document.body.append(link);
-        link.click();
-        link.remove();
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        downloadJson(localLeague.exportBackup(), "fantasyscout-108-copia.json");
+        return;
+      }
+      if (control.dataset.command === "export-monitors" && localLeague) {
+        downloadJson(localLeague.exportMonitorRegister(), "fantasyscout-monitores.json");
         return;
       }
       if (control.dataset.command === "logout") {

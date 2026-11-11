@@ -5,8 +5,9 @@ import {
 
 const LOCAL_KEY = "fantasyscout-108-local-v1";
 const LOCAL_FORMAT = "fantasyscout-108";
+const MONITOR_REGISTER_FORMAT = "fantasyscout-monitores";
 const LOCAL_STATUSES = new Set(["planned", "open", "scoring", "closed"]);
-const UNSAVED = "El navegador limita el guardado local. Descarga una copia desde Gestión para conservar esta sesión.";
+const UNSAVED = "El navegador limita el guardado local. Descarga una copia desde Monitores o Gestión para conservar esta sesión.";
 const UNREADABLE = "La liga guardada no se pudo leer. Puedes recuperar los datos importando una copia desde Gestión.";
 const localKey = (value) => value.normalize("NFKC").toLocaleLowerCase("es");
 const validLocalId = (value) => Number.isSafeInteger(value) && value > 0;
@@ -128,6 +129,38 @@ function addLocalId(rows) {
   return id;
 }
 
+function addMonitorTo(snapshot, name, sectionId) {
+  if (snapshot.monitors.some((monitor) => monitor.sectionId === sectionId && localKey(monitor.name) === localKey(name))) {
+    return false;
+  }
+  snapshot.monitors.push({ id: addLocalId(snapshot.monitors), name, sectionId });
+  return true;
+}
+
+function monitorRegisterRows(snapshot) {
+  const sections = new Map(snapshot.sections.map(({ id, name }) => [id, name]));
+  return snapshot.monitors.map(({ name, sectionId }) => ({ name, section: sections.get(sectionId) }));
+}
+
+function readMonitorRegister(serialized) {
+  const invalid = () => localError("Elige un registro de monitores o una copia válida de FantasyScout.");
+  let copy;
+  try {
+    copy = JSON.parse(serialized);
+  } catch {
+    throw invalid();
+  }
+  if (copy?.format === LOCAL_FORMAT) return monitorRegisterRows(normalizeCopy(serialized));
+  if (copy?.format !== MONITOR_REGISTER_FORMAT || copy.version !== 1 ||
+      !Array.isArray(copy.monitors) || copy.monitors.some((row) => !row || typeof row !== "object")) {
+    throw invalid();
+  }
+  return copy.monitors.map(({ name, section }) => ({
+    name: localText(name, "el nombre del monitor", 60),
+    section: localText(section, "el nombre de la sección", 60),
+  }));
+}
+
 export function createOfflineLeague({ storage = null, locks = null } = {}) {
   let activeId = null;
   let data = newLocalLeague();
@@ -161,6 +194,7 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
     const serialized = JSON.stringify(next);
     try {
       storage.setItem(LOCAL_KEY, serialized);
+      if (storage.getItem(LOCAL_KEY) !== serialized) throw new Error("No se pudo verificar el guardado.");
       lastStored = serialized;
       warning = "";
     } catch {
@@ -224,10 +258,9 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
         const name = localText(body.name, "el nombre del monitor", 60);
         const sectionId = body.sectionId;
         if (!lookupSection(sectionId)) throw localError("Elige una sección de la liga.");
-        if (draft.monitors.some((monitor) => monitor.sectionId === sectionId && localKey(monitor.name) === localKey(name))) {
+        if (!addMonitorTo(draft, name, sectionId)) {
           throw localError("Ese monitor ya está registrado en esta sección.", 409);
         }
-        draft.monitors.push({ id: addLocalId(draft.monitors), name, sectionId });
         return;
       }
       if (route[1] === "settings" && method === "PATCH") {
@@ -318,6 +351,32 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
     },
     exportBackup() {
       return JSON.stringify(read(), null, 2);
+    },
+    exportMonitorRegister() {
+      return JSON.stringify({
+        format: MONITOR_REGISTER_FORMAT, version: 1, monitors: monitorRegisterRows(read()),
+      }, null, 2);
+    },
+    async importMonitorRegister(serialized) {
+      const entries = readMonitorRegister(serialized);
+      return serializedWrite(() => {
+        const draft = JSON.parse(JSON.stringify(read()));
+        if (actorFor(draft)) throw localError("Selecciona la vista Organización para importar el registro.", 403);
+        const sections = new Map(draft.sections.map(({ name, id }) => [localKey(name), id]));
+        let added = 0;
+        for (const { name, section } of entries) {
+          const sectionKey = localKey(section);
+          let sectionId = sections.get(sectionKey);
+          if (!sectionId) {
+            sectionId = addLocalId(draft.sections);
+            draft.sections.push({ id: sectionId, name: section, reviewerId: null });
+            sections.set(sectionKey, sectionId);
+          }
+          if (addMonitorTo(draft, name, sectionId)) added++;
+        }
+        if (added) write(draft);
+        return added;
+      });
     },
     async importBackup(serialized) {
       const next = normalizeCopy(serialized);

@@ -69,7 +69,7 @@ p + p { margin-top: .55rem; }
 .auth-switch, .segmented { display: flex; flex-wrap: wrap; gap: .35rem; padding: .3rem; border-radius: .85rem; background: var(--mint); width: fit-content; margin: 1.15rem 0; }
 .auth-switch { width: 100%; }
 .auth-switch button { flex: 1; }
-.auth-switch button, .segmented button { border: 0; border-radius: .6rem; background: transparent; padding: .52rem .85rem; color: var(--muted); font-weight: 650; font-size: .92rem; }
+.auth-switch button, .segmented button, .segmented a { border: 0; border-radius: .6rem; background: transparent; padding: .52rem .85rem; color: var(--muted); font-weight: 650; font-size: .92rem; text-decoration: none; }
 .auth-switch button[aria-pressed="true"], .segmented button[aria-pressed="true"] { background: var(--surface); color: var(--forest); box-shadow: 0 1px 4px #1e403115; }
 .auth-box form { margin-top: 1.15rem; }
 .auth-box form .button { width: 100%; }

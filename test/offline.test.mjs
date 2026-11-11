@@ -108,6 +108,48 @@ test("una copia permite trasladar la liga y los errores de importación conserva
   assert.equal((await getState(restored)).players[0].sectionId, 1);
 });
 
+test("el registro de monitores persiste y las copias se importan sin duplicar registros", async () => {
+  const storage = memoryStorage();
+  const source = createOfflineLeague({ storage });
+  await source.request("/api/admin/sections", "POST", { name: "Manada" });
+  await monitor(source, "Senda", 1);
+  await monitor(source, "Olmo", 2);
+
+  const reopened = createOfflineLeague({ storage });
+  assert.deepEqual((await getState(reopened)).monitors.map(({ name }) => name), ["Senda", "Olmo"]);
+  const register = reopened.exportMonitorRegister();
+  assert.deepEqual(JSON.parse(register).monitors, [
+    { name: "Senda", section: "Tropa Jungla" }, { name: "Olmo", section: "Manada" },
+  ]);
+
+  const target = createOfflineLeague({ storage: memoryStorage() });
+  await add(target, "Mapa", "Brújulas", 1);
+  await monitor(target, "SENDA", 1);
+  target.viewAs(1);
+  await roster(target, [1]);
+  target.viewAs(null);
+  assert.equal(await target.importMonitorRegister(register), 1);
+  assert.equal(await target.importMonitorRegister(reopened.exportBackup()), 0);
+  await assert.rejects(target.importMonitorRegister("no es un JSON"), /copia válida/);
+  const view = await getState(target);
+  assert.deepEqual(view.monitors, [
+    { id: 1, name: "SENDA", sectionId: 1 }, { id: 2, name: "Olmo", sectionId: 2 },
+  ]);
+  assert.equal(view.sections[1].name, "Manada");
+  target.viewAs(1);
+  assert.deepEqual((await getState(target)).roster, [1]);
+});
+
+test("el registro avisa si el navegador acepta el guardado pero descarta los cambios", async () => {
+  const storage = { getItem: () => null, setItem() {} };
+  const league = createOfflineLeague({ storage });
+  await monitor(league, "Senda", 1);
+  const view = await getState(league);
+  assert.match(view.storageWarning, /Descarga una copia desde Monitores/);
+  assert.equal(JSON.parse(league.exportMonitorRegister()).monitors[0].name, "Senda");
+  assert.equal((await getState(createOfflineLeague({ storage }))).monitors.length, 0);
+});
+
 test("index.html arranca como script clásico con una liga local y sin acceso a la red", async () => {
   const html = await readFile(new URL("../index.html", import.meta.url), "utf8");
   assert.doesNotMatch(html, /<script[^>]+\bsrc=|<link[^>]+\bhref=|type="module"/i);
