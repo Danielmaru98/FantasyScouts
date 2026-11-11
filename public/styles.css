@@ -174,6 +174,11 @@ tbody th { font-size: .95rem; font-weight: 700; }
 .market-places small { font-size: .8rem; color: var(--muted); }
 .market-table thead th:first-child { width: 45%; }
 .market-value { color: var(--forest); font-weight: 800; }
+.market-detail { display: block; margin-top: .12rem; color: var(--muted); font-size: .74rem; font-weight: 650; }
+.market-rules summary { width: fit-content; cursor: pointer; font-weight: 750; }
+.market-rules p { margin-top: .65rem; }
+.market-rules ul { margin-block: .6rem; padding-inline-start: 1.2rem; }
+.market-rules li + li { margin-top: .28rem; }
 .market-mobile-label { display: none; }
 .market-action { text-align: right; }
 .market-action .button { min-height: 2.35rem; padding: .36rem .75rem; font-size: .85rem; }

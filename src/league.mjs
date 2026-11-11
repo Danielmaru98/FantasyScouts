@@ -16,6 +16,8 @@ export const DEFAULT_ROSTER_SIZE = 5;
 export const MAX_ROSTER_SIZE = 30;
 export const DEFAULT_MARKET_VALUE_CENTS = 100_000;
 export const MARKET_VALUE_ERROR = "Introduce un valor en euros igual o superior a cero, con hasta dos decimales.";
+const MARKET_RULES = Object.freeze({ neutralPoints: 4, percentPerPoint: 2, maxTeamBonus: 5 });
+const MAX_MARKET_VALUE_CENTS = BigInt(Number.MAX_SAFE_INTEGER);
 
 export function validRosterSize(size) {
   return Number.isInteger(size) && size >= 1 && size <= MAX_ROSTER_SIZE;
@@ -82,6 +84,56 @@ function indexByRound(rounds, entries, key, valueFor) {
   return index;
 }
 
+function countMonitorTeams(lineups) {
+  const counts = new Map();
+  for (const monitorIds of lineups) {
+    for (const id of monitorIds) counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function applyMarketChange(cents, percent) {
+  const adjusted = (cents * BigInt(100 + percent) + 50n) / 100n;
+  return adjusted > MAX_MARKET_VALUE_CENTS ? MAX_MARKET_VALUE_CENTS : adjusted;
+}
+
+function marketView({ monitors, rounds, rosters, roundRosters, scores }) {
+  const closed = rounds.filter(({ status }) => status === "closed").sort((a, b) => a.id - b.id);
+  const pointsByRound = indexByRound(closed, scores, "monitorId", ({ mask }) => pointsFor(mask));
+  const lineupsByRound = indexByRound(closed, roundRosters, "playerId", ({ monitorIds }) => monitorIds);
+  const values = new Map(monitors.map(({ id, marketValueCents }) => [id, BigInt(marketValueCents)]));
+  const teamBonus = (count) => Math.min(count, MARKET_RULES.maxTeamBonus);
+  let lastLineups = new Map();
+
+  for (const { id } of closed) {
+    const points = pointsByRound.get(id);
+    lastLineups = countMonitorTeams(lineupsByRound.get(id).values());
+    const participating = new Set([...points.keys(), ...lastLineups.keys()]);
+    for (const monitorId of participating) {
+      const value = values.get(monitorId);
+      if (value === undefined) continue;
+      const performance = ((points.get(monitorId) ?? 0) - MARKET_RULES.neutralPoints) * MARKET_RULES.percentPerPoint;
+      const usage = teamBonus(lastLineups.get(monitorId) ?? 0);
+      values.set(monitorId, applyMarketChange(value, performance + usage));
+    }
+  }
+
+  const signed = countMonitorTeams(rosters.map(({ monitorIds }) => monitorIds));
+  return {
+    marketRules: MARKET_RULES,
+    marketRoundId: closed.at(-1)?.id ?? null,
+    monitors: monitors.map((monitor) => {
+      const signedTeams = signed.get(monitor.id) ?? 0;
+      return {
+        ...monitor,
+        currentValueCents: Number(applyMarketChange(values.get(monitor.id), teamBonus(signedTeams))),
+        signedTeams,
+        alignedTeams: lastLineups.get(monitor.id) ?? 0,
+      };
+    }),
+  };
+}
+
 export function calculateStandings(players, rounds, scores, roundRosters) {
   const pointsByRound = indexByRound(rounds, scores, "monitorId", ({ mask }) => pointsFor(mask));
   const rostersByRound = indexByRound(rounds, roundRosters, "playerId", ({ monitorIds }) => monitorIds);
@@ -145,7 +197,7 @@ export function leagueView(snapshot, actor) {
     viewer,
     sections: actor.isAdmin ? sections : publicSections,
     players,
-    monitors,
+    ...marketView(snapshot),
     defaultMarketValueCents: DEFAULT_MARKET_VALUE_CENTS,
     rounds,
     rosterSize,

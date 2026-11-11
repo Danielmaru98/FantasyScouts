@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { calculateStandings, contributionMask, nextRoundStatus, pointsFor, rosterProblem } from "../src/league.mjs";
+import { calculateStandings, contributionMask, leagueView, nextRoundStatus, pointsFor, rosterProblem } from "../src/league.mjs";
 
 const players = [
   { id: 1, alias: "Norte", team: "Mapas", sectionId: 1 },
@@ -53,4 +53,47 @@ test("la semana fija las plantillas antes de cargar puntos y permite correccione
   assert.equal(nextRoundStatus("closed", "reopen"), "scoring");
   assert.equal(nextRoundStatus("closed", "open"), null);
   assert.equal(nextRoundStatus("open", "close"), null);
+});
+
+test("el mercado acumula las jornadas cerradas y aplica el ajuste de fichajes actuales una vez", () => {
+  const teams = Array.from({ length: 6 }, (_, index) => {
+    const id = index + 1;
+    return { id, alias: `Mánager ${id}`, team: `Equipo ${id}`, sectionId: 1 };
+  });
+  const snapshot = {
+    sections: [{ id: 1, name: "Tropa Jungla", reviewerId: null }],
+    players: teams,
+    monitors: ["Norte", "Junco", "Pino"].map((name, index) =>
+      ({ id: index + 1, name, sectionId: 1, marketValueCents: 100_000 })),
+    rounds: [{ id: 2, status: "closed" }, { id: 1, status: "closed" }, { id: 3, status: "scoring" }],
+    rosterSize: 5,
+    rosters: teams.map(({ id }) => ({ playerId: id, monitorIds: id === 1 ? [1, 2] : [1] })),
+    roundRosters: teams.map(({ id }) => ({ roundId: 1, playerId: id, monitorIds: id === 1 ? [1, 3] : [1] })),
+    scores: [
+      { roundId: 1, monitorId: 1, mask: contributionMask(["task", "help", "challenge", "improvement"]) },
+      { roundId: 2, monitorId: 1, mask: contributionMask([]) },
+      { roundId: 3, monitorId: 2, mask: contributionMask(["task", "help", "challenge", "improvement"]) },
+    ],
+  };
+  const read = () => leagueView(snapshot, { isAdmin: true, playerId: null });
+  const view = read();
+  assert.equal(view.marketRoundId, 2);
+  assert.deepEqual(view.monitors.map(({ marketValueCents, currentValueCents, signedTeams, alignedTeams }) =>
+    [marketValueCents, currentValueCents, signedTeams, alignedTeams]), [
+    [100_000, 109_158, 6, 0],
+    [100_000, 101_000, 1, 0],
+    [100_000, 93_000, 0, 0],
+  ]);
+
+  snapshot.rounds[0].status = "scoring";
+  const reopened = read();
+  assert.equal(reopened.marketRoundId, 1);
+  assert.equal(reopened.monitors[0].currentValueCents, 118_650);
+  assert.equal(reopened.monitors[0].alignedTeams, 6);
+
+  snapshot.scores[1].mask = contributionMask(["task", "help"]);
+  snapshot.rounds[0].status = "closed";
+  const corrected = read();
+  assert.equal(corrected.monitors[0].currentValueCents, 121_023);
+  assert.deepEqual(read().monitors, corrected.monitors);
 });

@@ -79,6 +79,8 @@ test("la liga local congela la plantilla de cada semana y aplica los cambios a l
   assert.deepEqual(state.standings[0].results.slice(0, 2), [
     { roundId: 1, total: 5, scored: true }, { roundId: 2, total: 1, scored: true },
   ]);
+  assert.deepEqual(state.monitors.map(({ currentValueCents, signedTeams, alignedTeams }) =>
+    [currentValueCents, signedTeams, alignedTeams]), [[102_000, 0, 0], [99_000, 0, 1], [97_970, 1, 1]]);
   assert.deepEqual((await getState(reopened)).roster, [3]);
   assert.deepEqual((await getState(reopened)).weeklyRosters.map(({ monitorIds }) => monitorIds), [[2, 3], [3]]);
 });
@@ -171,8 +173,8 @@ test("el registro de monitores persiste y las copias se importan sin duplicar re
   await assert.rejects(target.importMonitorRegister("no es un JSON"), /copia válida/);
   const view = await getState(target);
   assert.deepEqual(view.monitors, [
-    { id: 1, name: "SENDA", sectionId: 1, marketValueCents: DEFAULT_MARKET_VALUE_CENTS },
-    { id: 2, name: "Olmo", sectionId: 2, marketValueCents: 155_050 },
+    { id: 1, name: "SENDA", sectionId: 1, marketValueCents: DEFAULT_MARKET_VALUE_CENTS, currentValueCents: 101_000, signedTeams: 1, alignedTeams: 0 },
+    { id: 2, name: "Olmo", sectionId: 2, marketValueCents: 155_050, currentValueCents: 155_050, signedTeams: 0, alignedTeams: 0 },
   ]);
   assert.equal(view.sections[1].name, "Manada");
   await openUser(target);
@@ -295,6 +297,8 @@ test("index.html crea un equipo en la primera visita y pide la clave para organi
   await submit("market-transfer", {}, { id: "1", move: "sign" });
   assert.equal(notice.textContent, "Monitor fichado.");
   navigate("mercado");
+  assert.match(mount.innerHTML, /1\.263,26\s€/);
+  assert.match(mount.innerHTML, /1 fichaje</);
   assert.doesNotMatch(mount.innerHTML, /data-form="market-transfer"/);
   navigate("alineacion");
   assert.match(mount.innerHTML, /class="pitch-name" title="Junco">Junco/);

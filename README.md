@@ -16,7 +16,9 @@ La liga se guarda en el navegador desde el que abres el archivo. **Gestión → 
 
 En **Monitores**, puedes descargar el registro por separado. **Importar registro** añade los monitores que falten a partir de ese archivo o de una copia completa de FantasyScout.
 
-En **Vista usuario**, **Mercado** permite consultar monitores, sus valores en euros y sus puntos. Los monitores parten de 1.000 € y Organización puede asignar otro importe al registrarlos o pulsar **Editar valor** en el registro. Las copias locales incluyen los valores.
+En **Vista usuario**, **Mercado** permite consultar monitores, sus valores en euros y sus puntos. Los monitores parten de 1.000 € y Organización puede asignar otro importe al registrarlos o pulsar **Editar valor base** en el registro. Las copias conservan el valor base y los datos de la liga permiten recalcular el precio actual.
+
+Al cerrar una jornada, cada punto por encima de 4 suma un 2 % y cada punto por debajo resta un 2 %. Cada equipo que lo alineó añade un 1 %, hasta un 5 % por jornada. Estos cambios se acumulan cuando el monitor tiene puntos registrados o figura en una alineación. Además, cada equipo que lo tiene fichado actualmente añade un 1 % al precio, hasta un 5 %.
 
 Puedes importar una copia del HTML anterior. Los participantes de aquella liga pasan también al registro de monitores, los fichajes elegidos forman la plantilla histórica y los puntos individuales se conservan.
 

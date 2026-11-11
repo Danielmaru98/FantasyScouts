@@ -140,6 +140,7 @@ test("los equipos comparten monitores y el servidor conserva las plantillas sema
   assert.equal(managerState.standings[1].total, 3);
   assert.deepEqual(managerState.reviewScores, []);
   assert.deepEqual(managerState.roster, [monitorId("Dani")]);
+  assert.deepEqual(managerState.monitors.map(({ currentValueCents }) => currentValueCents), [124_691, 82_025, 101_000]);
   assert.deepEqual(managerState.weeklyRosters, [{ playerId: playerId("Dani"), roundId: 1, monitorIds: chosen }]);
   const reviewState = (await reviewer("/api/state")).body;
   assert.deepEqual(reviewState.viewer.reviewIds, [2]);
@@ -163,6 +164,7 @@ test("los equipos comparten monitores y el servidor conserva las plantillas sema
   assert.equal(reloaded.rosterSize, 2);
   assert.deepEqual(reloaded.monitors.map(({ marketValueCents }) => marketValueCents),
     [123_456, 82_025, DEFAULT_MARKET_VALUE_CENTS]);
+  assert.deepEqual(reloaded.monitors.map(({ currentValueCents }) => currentValueCents), [124_691, 81_205, 109_080]);
   assert.equal(reloaded.standings[0].total, 6);
   assert.deepEqual(reloaded.roster, [monitorId("Dani")]);
   assert.deepEqual(reloaded.weeklyRosters[0].monitorIds, chosen);

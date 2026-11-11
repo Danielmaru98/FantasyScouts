@@ -95,7 +95,7 @@ function marketValueDecimal(cents) {
 
 function marketValueField(id, cents) {
   const value = marketValueDecimal(cents).replace(/\.00$/, "").replace(".", ",");
-  return `<div class="field"><label for="${id}">Valor de mercado (€)</label>
+  return `<div class="field"><label for="${id}">Valor base (€)</label>
     <input id="${id}" name="marketValue" inputmode="decimal" value="${value}" autocomplete="off" required>
   </div>`;
 }
@@ -344,7 +344,7 @@ function lineupPage() {
   const scoreRound = round ?? lastScoredRound();
   const standing = myStanding();
   const result = standing?.results.find(({ roundId }) => roundId === round?.id);
-  const value = members.reduce((total, { marketValueCents }) => total + BigInt(marketValueCents), 0n);
+  const value = members.reduce((total, { currentValueCents }) => total + BigInt(currentValueCents), 0n);
   const edit = `<button id="lineup-edit" type="button" class="button ${lineupEditing ? "secondary" : "accent"}"
     data-command="edit-lineup" aria-expanded="${lineupEditing}" aria-controls="lineup-content">
     ${lineupEditing ? "Volver al campo" : "Editar plantilla"}
@@ -398,13 +398,17 @@ function marketResults() {
       <th scope="col" role="columnheader" class="num">${weekLabel}</th>
       <th scope="col" role="columnheader" class="num">Total</th>
       ${showActions ? '<th scope="col" role="columnheader" class="num">Plantilla</th>' : ""}
-    </tr></thead><tbody role="rowgroup">${monitors.map(({ id, name, sectionId, marketValueCents }) => {
+    </tr></thead><tbody role="rowgroup">${monitors.map(({ id, name, sectionId, currentValueCents, signedTeams, alignedTeams }) => {
       const points = weekly.get(id) ?? (week?.status === "closed" ? 0 : undefined);
       const signed = showActions && roster.has(id);
       const label = signed ? "Liberar" : "Fichar";
       return `<tr role="row"${signed ? ' class="active-row"' : ""}>
         <th scope="row" role="rowheader" class="market-monitor">${personLine(name, sectionName(sectionId))}</th>
-        <td role="cell" class="num market-value">${euro.format(marketValueDecimal(marketValueCents))}</td>
+        <td role="cell" class="num market-value">
+          ${euro.format(marketValueDecimal(currentValueCents))}
+          <small class="market-detail">${signedTeams} ${signedTeams === 1 ? "fichaje" : "fichajes"}</small>
+          ${state.marketRoundId === null ? "" : `<small class="market-detail">${alignedTeams} ${alignedTeams === 1 ? "alineación" : "alineaciones"} · S${state.marketRoundId}</small>`}
+        </td>
         <td role="cell" class="num market-week"><span class="market-mobile-label" aria-hidden="true">${weekLabel}</span>
           ${points === undefined ? "—" : `${points} pt`}</td>
         <td role="cell" class="num points market-total"><span class="market-mobile-label" aria-hidden="true">Total</span>${total(id)} pt</td>
@@ -444,10 +448,22 @@ function marketPage() {
   let action = refreshButton;
   if (isAdmin()) {
     action = state.monitors.length ? `<div class="form-actions">${refreshButton}
-      <a class="button secondary" href="#monitores" data-route>Editar valores</a></div>`
+      <a class="button secondary" href="#monitores" data-route>Editar valores base</a></div>`
       : '<a class="button primary" href="#monitores" data-route>Registrar monitores</a>';
   }
-  return pageHead("Mercado", "Consulta el valor y los puntos de los monitores de todo el grupo.", action) + marketPanel();
+  const { neutralPoints, percentPerPoint, maxTeamBonus } = state.marketRules;
+  return `${pageHead("Mercado", "Consulta el valor y los puntos de los monitores de todo el grupo.", action)}
+    ${marketPanel()}
+    <details class="card market-rules">
+      <summary>Cómo cambia el valor</summary>
+      <p class="muted">Los cambios de cada jornada cerrada se acumulan a partir del valor base.</p>
+      <ul>
+        <li><strong>Puntos.</strong> Cada punto por encima de ${neutralPoints} suma un ${percentPerPoint} % y cada punto por debajo resta un ${percentPerPoint} %.</li>
+        <li><strong>Alineaciones.</strong> Cada equipo que lo alineó suma un 1 %, hasta un ${maxTeamBonus} % por jornada.</li>
+        <li><strong>Fichajes.</strong> Cada equipo que lo tiene fichado añade un 1 % al valor actual, hasta un ${maxTeamBonus} %.</li>
+      </ul>
+      <p class="hint">Una jornada cuenta cuando el monitor figura en una alineación o tiene puntos registrados. Una alineación sin puntuación registrada cuenta como 0 puntos.</p>
+    </details>`;
 }
 
 function standingsPage() {
@@ -555,15 +571,16 @@ function monitorRegisterPage() {
     ? '<button class="button secondary" type="button" data-command="export-monitors">Descargar registro</button>' : "";
   const list = `<section class="card table-card">
     ${monitors.length ? `<div class="table-wrap"><table aria-label="Registro de monitores">
-      <thead><tr><th scope="col">Nombre</th><th scope="col">Sección</th><th scope="col" class="num">Valor de mercado</th></tr></thead>
-      <tbody>${monitors.map(({ id, name, sectionId, marketValueCents }) => `<tr>
+      <thead><tr><th scope="col">Nombre</th><th scope="col">Sección</th><th scope="col" class="num">Valor actual</th></tr></thead>
+      <tbody>${monitors.map(({ id, name, sectionId, marketValueCents, currentValueCents }) => `<tr>
         <th scope="row">${h(name)}</th><td>${h(sectionName(sectionId))}</td>
-        <td class="num"><strong class="market-value">${euro.format(marketValueDecimal(marketValueCents))}</strong>
-          ${organization ? `<details class="monitor-value-editor">
-            <summary id="edit-monitor-${id}" aria-label="Editar valor de ${h(name)}">Editar valor</summary>
+        <td class="num"><strong class="market-value">${euro.format(marketValueDecimal(currentValueCents))}</strong>
+          ${organization ? `<small class="market-detail">Base ${euro.format(marketValueDecimal(marketValueCents))}</small>
+          <details class="monitor-value-editor">
+            <summary id="edit-monitor-${id}" aria-label="Editar valor base de ${h(name)}">Editar valor base</summary>
             <form class="form" data-form="edit-monitor-value" data-id="${id}">
               ${marketValueField(`monitor-value-${id}`, marketValueCents)}
-              ${errorRegion}<button class="button secondary" type="submit">Guardar valor</button>
+              ${errorRegion}<button class="button secondary" type="submit">Guardar valor base</button>
             </form>
           </details>` : ""}
         </td>
@@ -755,7 +772,7 @@ const actions = {
   "add-monitor": ({ name, sectionId, marketValue }) => ["/api/admin/monitors", "POST",
     { name, sectionId: Number(sectionId), marketValueCents: parseMarketValue(marketValue) }, "Monitor registrado."],
   "edit-monitor-value": ({ marketValue }, form) => [`/api/admin/monitors/${form.dataset.id}`, "PATCH",
-    { marketValueCents: parseMarketValue(marketValue) }, "Valor de mercado guardado."],
+    { marketValueCents: parseMarketValue(marketValue) }, "Valor base guardado."],
   settings: ({ rosterSize }) => ["/api/admin/settings", "PATCH", { rosterSize: Number(rosterSize) }, "Límite actualizado."],
   "add-section": (values) => ["/api/admin/sections", "POST", values, "Sección añadida."],
   "edit-section": ({ name, reviewerId }, form) => [`/api/admin/sections/${form.dataset.id}`, "PATCH",
