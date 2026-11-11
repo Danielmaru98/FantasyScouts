@@ -10,6 +10,8 @@ Descarga [index.html](index.html) y ábrelo en el navegador con doble clic.
 2. Inscribe a los mánagers en **Equipos**. Usa **Vista local** para elegir a cada mánager. Desde **Alineación → Editar plantilla** puede fichar monitores o liberar plazas.
 3. Vuelve a **Organización**, abre la semana y pulsa **Fijar plantillas** cuando empiece. Registra las aportaciones de los monitores en **Puntuaciones**.
 
+En **Vista local**, selecciona **Vista usuario** para consultar Alineación y Clasificación antes de inscribir equipos. Para gestionar una plantilla, elige el alias de su mánager.
+
 La liga se guarda en el navegador desde el que abres el archivo. **Gestión → Copia** permite descargarla en JSON y cargarla en otro navegador. El archivo HTML se puede regenerar con `npm run build:offline`.
 
 En **Monitores**, puedes descargar el registro por separado. **Importar registro** añade los monitores que falten a partir de ese archivo o de una copia completa de FantasyScout.

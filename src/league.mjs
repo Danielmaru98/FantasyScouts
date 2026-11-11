@@ -134,13 +134,14 @@ export function leagueView(snapshot, actor) {
   const { sections, players, monitors, rounds, rosterSize, rosters, roundRosters, scores } = snapshot;
   const publicSections = sections.map(({ id, name }) => ({ id, name }));
   const player = actor && players.find(({ id }) => id === actor.playerId);
-  if (!actor || (!actor.isAdmin && !player)) return { viewer: null, sections: publicSections };
+  if (!actor || (!actor.isAdmin && !player && !actor.isPreview)) return { viewer: null, sections: publicSections };
 
-  const reviewIds = sections.filter(({ id, reviewerId }) => actor.isAdmin || reviewerId === player?.id)
+  const reviewIds = sections.filter(({ reviewerId }) => actor.isAdmin || (player && reviewerId === player.id))
     .map(({ id }) => id);
   const reviewable = new Set(reviewIds);
   const monitorSections = new Map(monitors.map(({ id, sectionId }) => [id, sectionId]));
-  const viewer = actor.isAdmin ? { role: "admin", reviewIds } : { role: "player", player, reviewIds };
+  const viewer = actor.isAdmin ? { role: "admin", reviewIds }
+    : player ? { role: "player", player, reviewIds } : { role: "preview", reviewIds };
   return {
     viewer,
     sections: actor.isAdmin ? sections : publicSections,

@@ -201,6 +201,18 @@ test("index.html arranca sin red y permite registrar y alinear monitores por cli
   await new Promise((resolve) => setImmediate(resolve));
   assert.match(mount.innerHTML, /Prepara tu liga/);
   assert.match(mount.innerHTML, /Vista local/);
+  assert.match(mount.innerHTML, /<option value="preview">Vista usuario<\/option>/);
+
+  const switchView = (value) => listeners.get("change")({ target: { dataset: { select: "local-view" }, value } });
+  await switchView("preview");
+  assert.equal(location.hash, "#alineacion");
+  assert.equal((await getState(browser.fantasyScoutLocal)).viewer.role, "preview");
+  assert.match(mount.innerHTML, /<option value="preview" selected>Vista usuario<\/option>/);
+  assert.match(mount.innerHTML, /Alineación en el campo/);
+  assert.doesNotMatch(mount.innerHTML, /data-command="edit-lineup"/);
+  await assert.rejects(add(browser.fantasyScoutLocal, "Norte", "Mapas", 1), { status: 403 });
+  await switchView("");
+  assert.equal(location.hash, "#inicio");
 
   location.hash = "#monitores";
   const error = {};
@@ -220,7 +232,7 @@ test("index.html arranca sin red y permite registrar y alinear monitores por cli
   assert.equal(notice.textContent, "Monitor registrado.");
 
   await add(browser.fantasyScoutLocal, "Norte", "Mapas", 1);
-  await listeners.get("change")({ target: { dataset: { select: "local-view" }, value: "1" } });
+  await switchView("1");
   assert.equal(location.hash, "#alineacion");
   const navigation = mount.innerHTML.match(/<nav [^>]*>([\s\S]+?)<\/nav>/)?.[1];
   assert.ok(navigation);
