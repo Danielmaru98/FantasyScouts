@@ -1,8 +1,20 @@
 # FantasyScout
 
-Liga de scouters del Grupo Scout Ciudad del Sol 108. Cada participante inscribe un equipo y elige dos fichajes por jornada. Los puntos y las alineaciones se comparten desde una base de datos SQLite.
+Liga de scouters del Grupo Scout Ciudad del Sol 108. Cada participante inscribe un equipo y elige dos fichajes por jornada.
 
-## Arranque
+## Versión local en un archivo
+
+Descarga [index.html](index.html) y ábrelo en el navegador con doble clic.
+
+1. Añade las secciones en **Gestión → Secciones** e inscribe a los participantes en **Gestión → Scouters**.
+2. Abre los fichajes desde **Gestión → Jornadas**. Usa **Vista local** para elegir a cada scouter y guardar su alineación.
+3. Vuelve a **Organización**, cierra los fichajes y registra las aportaciones en **Puntuaciones**.
+
+La liga se guarda en el navegador desde el que abres el archivo. **Gestión → Copia** permite descargarla en JSON y cargarla en otro navegador. El archivo HTML se puede regenerar con `npm run build:offline`.
+
+## Arranque con servidor
+
+La versión con servidor comparte los puntos y las alineaciones mediante SQLite.
 
 1. Usa Node.js 24.2 o posterior.
 2. Copia el archivo de configuración.

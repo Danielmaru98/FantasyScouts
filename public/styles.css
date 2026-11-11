@@ -105,6 +105,10 @@ select:disabled, textarea:disabled, input:disabled { background: #f0f4ef; opacit
 .account { display: flex; align-items: center; gap: .65rem; }
 .account span { max-width: 10rem; overflow-wrap: anywhere; font-size: .88rem; font-weight: 750; }
 .account .button { min-height: 2.15rem; padding: .35rem .6rem; font-size: .8rem; }
+.local-account { display: flex; align-items: center; gap: .48rem; }
+.local-account label { color: var(--muted); font-size: .78rem; font-weight: 750; white-space: nowrap; }
+.local-account select { width: clamp(7rem, 14vw, 12rem); min-height: 2.15rem; padding: .35rem .46rem; font-size: .84rem; }
+.local-warning { border-radius: .8rem; background: #f7edca; color: #65450e; padding: .65rem .85rem; }
 .workspace { max-width: 1210px; margin: 0 auto; padding: 2rem clamp(1rem, 3vw, 2rem) 3rem; display: grid; gap: 1.2rem; }
 .page-head { display: flex; justify-content: space-between; align-items: end; gap: .9rem; flex-wrap: wrap; margin-bottom: .2rem; }
 .page-head h1 { font-size: clamp(1.9rem, 4vw, 3rem); margin-bottom: .3rem; }

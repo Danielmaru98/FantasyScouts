@@ -1,5 +1,6 @@
 const app = document.querySelector("#app");
 const notice = document.querySelector("#notice");
+const localLeague = window.fantasyScoutLocal ?? null;
 const dates = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Madrid" });
 const labels = { planned: "Programada", open: "Fichajes abiertos", scoring: "En puntuación", closed: "Cerrada" };
 const routes = { inicio: "Inicio", alineacion: "Alineación", clasificacion: "Clasificación", jornadas: "Jornadas", gestion: "Gestión" };
@@ -49,6 +50,7 @@ function alertUser(message, error = false) {
 }
 
 async function request(path, method = "GET", body) {
+  if (localLeague) return localLeague.request(path, method, body);
   const response = await fetch(path, {
     method,
     headers: body === undefined ? undefined : { "Content-Type": "application/json" },
@@ -133,14 +135,21 @@ function topBar() {
   const tabs = Object.entries(routes).filter(([key]) => {
     return (key !== "alineacion" || !isAdmin()) && (key !== "gestion" || canReview());
   });
+  const account = localLeague ? `<div class="local-account">
+    <label for="local-view">Vista local</label>
+    <select id="local-view" data-select="local-view">
+      <option value="">Organización</option>
+      ${state.players.map(({ id, alias }) => `<option value="${id}"${choose(id, me()?.id)}>${h(alias)}</option>`).join("")}
+    </select>
+  </div>` : `<div class="account"><span>${isAdmin() ? "Organización" : h(me().alias)}</span>
+    <button type="button" class="button secondary" data-command="logout">Salir</button>
+  </div>`;
   return `<header class="topbar"><div class="topbar-inner">
     ${brand()}
     <nav class="main-nav" aria-label="Navegación principal">
       ${tabs.map(([key, label]) => `<a href="#${key}" data-route${key === currentRoute ? ' aria-current="page"' : ""}>${label}</a>`).join("")}
     </nav>
-    <div class="account"><span>${isAdmin() ? "Organización" : h(me().alias)}</span>
-      <button type="button" class="button secondary" data-command="logout">Salir</button>
-    </div>
+    ${account}
   </div></header>`;
 }
 
@@ -183,13 +192,16 @@ function topFive() {
 function home() {
   const round = activeRound();
   const own = myStanding();
+  const preparing = localLeague && isAdmin() && state.players.length === 0;
   const openForPlayer = round.status === "open" && !isAdmin();
-  const title = openForPlayer ? "Elige tus fichajes" : `Jornada ${round.id}`;
+  const title = preparing ? "Prepara tu liga" : openForPlayer ? "Elige tus fichajes" : `Jornada ${round.id}`;
+  const description = preparing ? "Añade las secciones del grupo y registra a los scouters para abrir la primera jornada." : round.challenge;
+  const action = preparing ? '<a class="button accent" href="#gestion" data-route data-panel="sections">Añadir secciones</a>' :
+    openForPlayer ? `<a class="button accent" href="#alineacion" data-route data-round="${round.id}">Mi alineación</a>` :
+      `<a class="button accent" href="#${isAdmin() ? "gestion" : "jornadas"}" data-route>${isAdmin() ? "Gestionar jornada" : "Ver jornadas"}</a>`;
   return `<section class="hero"><div class="hero-content">
-    <div class="hero-meta"><span class="eyebrow">${openForPlayer ? `Jornada ${round.id}` : "Reto común"}</span>${roundStatus(round)}</div>
-    <h1>${title}</h1><p>${h(round.challenge)}</p>
-    ${openForPlayer ? `<a class="button accent" href="#alineacion" data-route data-round="${round.id}">Mi alineación</a>` :
-      `<a class="button accent" href="#${isAdmin() ? "gestion" : "jornadas"}" data-route>${isAdmin() ? "Gestionar jornada" : "Ver jornadas"}</a>`}
+    <div class="hero-meta"><span class="eyebrow">${preparing ? "FantasyScout 108" : openForPlayer ? `Jornada ${round.id}` : "Reto común"}</span>${preparing ? "" : roundStatus(round)}</div>
+    <h1>${title}</h1><p>${h(description)}</p>${action}
   </div></section>
   <section class="stat-grid" aria-label="Datos de la liga">
     ${isAdmin() ? stat("Scouters inscritos", state.players.length) + stat("Secciones", state.sections.length) +
@@ -329,6 +341,49 @@ function manageSections() {
   }).join("")}</div>`;
 }
 
+function managePlayers() {
+  return `<div class="manage-grid">
+    <section class="card">
+      <h2>Inscribir scouter</h2>
+      <form class="form" data-form="add-player">
+        <div class="field"><label for="local-alias">Alias</label><input id="local-alias" name="alias" maxlength="32" required></div>
+        <div class="field"><label for="local-team">Nombre del equipo</label><input id="local-team" name="team" maxlength="52" required></div>
+        <div class="field"><label for="local-section">Sección</label><select id="local-section" name="sectionId" required>
+          <option value="">Elige una sección</option>
+          ${state.sections.map(({ id, name }) => `<option value="${id}">${h(name)}</option>`).join("")}
+        </select></div>
+        ${errorRegion}<button class="button primary" type="submit">Inscribir scouter</button>
+      </form>
+    </section>
+    <section class="card">
+      <h2>Scouters inscritos</h2>
+      ${state.players.length ? `<ul class="person-list">${state.players.map(({ alias, team, sectionId }) =>
+        `<li>${personLine(alias, team)}<span class="person-slot">${h(sectionName(sectionId))}</span></li>`).join("")}</ul>` :
+        '<p class="empty">Añade el primer scouter de la liga.</p>'}
+    </section>
+  </div>`;
+}
+
+function manageBackup() {
+  return `<div class="manage-grid">
+    <section class="card">
+      <h2>Guardar una copia</h2>
+      <p class="muted">Descarga las secciones, los equipos, las alineaciones y los puntos en un archivo JSON.</p>
+      <button class="button primary" type="button" data-command="export-backup">Descargar copia</button>
+    </section>
+    <section class="card">
+      <h2>Cargar una copia</h2>
+      <p class="muted">La copia sustituirá la liga guardada en este navegador.</p>
+      <form class="form" data-form="import-backup">
+        <div class="field"><label for="local-backup">Copia de FantasyScout</label>
+          <input id="local-backup" name="copy" type="file" accept=".json,application/json" required>
+        </div>
+        ${errorRegion}<button class="button secondary" type="submit">Importar y sustituir la liga</button>
+      </form>
+    </section>
+  </div>`;
+}
+
 function manageScores() {
   const sections = state.sections.filter(({ id }) => state.viewer.reviewIds.includes(id));
   const round = roundFor(reviewRound ?? state.rounds.find(({ status }) => status === "scoring")?.id);
@@ -372,11 +427,13 @@ function manageScores() {
 
 function managementPage() {
   const tabs = [["rounds", "Jornadas"], ["scores", "Puntuaciones"], ["sections", "Secciones"]];
+  if (localLeague) tabs.push(["players", "Scouters"], ["backup", "Copia"]);
   const panel = isAdmin() ? manageTab : "scores";
+  const panels = { rounds: manageRounds, scores: manageScores, sections: manageSections, players: managePlayers, backup: manageBackup };
   return `${pageHead("Gestión", isAdmin() ? "Configura la liga y valida las aportaciones de cada jornada." : "Registra las aportaciones de tu sección.")}
     ${isAdmin() ? `<div class="segmented" aria-label="Panel de gestión">${tabs.map(([key, label]) =>
       `<button type="button" data-manage="${key}" aria-pressed="${panel === key}">${label}</button>`).join("")}</div>` : ""}
-    ${panel === "rounds" ? manageRounds() : panel === "sections" ? manageSections() : manageScores()}`;
+    ${panels[panel]()}`;
 }
 
 function render() {
@@ -390,7 +447,8 @@ function render() {
     currentRoute = "inicio";
   }
   const pages = { inicio: home, alineacion: lineupPage, clasificacion: standingsPage, jornadas: roundsPage, gestion: managementPage };
-  app.innerHTML = `${topBar()}<main class="workspace" id="main" tabindex="-1">${pages[currentRoute]()}</main>
+  const storageWarning = state.storageWarning ? `<p class="local-warning" role="status">${h(state.storageWarning)}</p>` : "";
+  app.innerHTML = `${topBar()}<main class="workspace" id="main" tabindex="-1">${storageWarning}${pages[currentRoute]()}</main>
     <footer class="footer">Grupo Scout Ciudad del Sol 108</footer>`;
 }
 
@@ -420,6 +478,7 @@ const actions = {
     { firstPickId: Number(firstPickId), secondPickId: Number(secondPickId) }, "Alineación guardada."],
   round: (values, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", values, "Calendario guardado."],
   phase: (_, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", { action: form.dataset.action }, "Fase actualizada."],
+  "add-player": ({ alias, team, sectionId }) => ["/api/admin/players", "POST", { alias, team, sectionId: Number(sectionId) }, "Scouter inscrito."],
   "add-section": (values) => ["/api/admin/sections", "POST", values, "Sección añadida."],
   "edit-section": ({ name, reviewerId }, form) => [`/api/admin/sections/${form.dataset.id}`, "PATCH",
     { name, reviewerId: reviewerId ? Number(reviewerId) : null }, "Sección guardada."],
@@ -430,7 +489,8 @@ const actions = {
 app.addEventListener("submit", async (event) => {
   const form = event.target;
   const action = actions[form.dataset.form];
-  if (!action) return;
+  const importing = localLeague && form.dataset.form === "import-backup";
+  if (!action && !importing) return;
   event.preventDefault();
   if (saving) return;
   const data = new FormData(form);
@@ -439,8 +499,17 @@ app.addEventListener("submit", async (event) => {
   saving = button.disabled = true;
   errorBox.hidden = true;
   try {
-    const [path, method, body, message] = action(Object.fromEntries(data), form, data);
-    await request(path, method, body);
+    let message;
+    if (importing) {
+      const copy = data.get("copy");
+      if (!copy?.size || copy.size > 2 * 1024 * 1024) throw new Error("Elige una copia JSON de hasta 2 MB.");
+      await localLeague.importBackup(await copy.text());
+      message = "Copia cargada.";
+    } else {
+      const [path, method, body, feedback] = action(Object.fromEntries(data), form, data);
+      await request(path, method, body);
+      message = feedback;
+    }
     await reload();
     if (["login", "admin-login", "register"].includes(form.dataset.form)) resetRoute();
     render();
@@ -458,8 +527,27 @@ app.addEventListener("submit", async (event) => {
   }
 });
 
-app.addEventListener("change", (event) => {
+app.addEventListener("change", async (event) => {
   const control = event.target;
+  if (control.dataset.select === "local-view" && localLeague) {
+    if (saving) {
+      control.value = me()?.id ?? "";
+      return;
+    }
+    saving = control.disabled = true;
+    try {
+      localLeague.viewAs(control.value ? Number(control.value) : null);
+      await reload();
+      resetRoute();
+      render();
+      document.getElementById("local-view")?.focus({ preventScroll: true });
+    } catch (error) {
+      alertUser(error.message, true);
+    } finally {
+      saving = control.disabled = false;
+    }
+    return;
+  }
   if (control.name === "category") {
     const points = Array.from(control.form.querySelectorAll('input[name="category"]:checked'))
       .reduce((sum, checked) => sum + Number(checked.dataset.value), 0);
@@ -484,6 +572,7 @@ app.addEventListener("click", async (event) => {
   if (!control) return;
   if (control.hasAttribute("data-route")) {
     if (control.dataset.round) lineupRound = Number(control.dataset.round);
+    if (control.dataset.panel) manageTab = control.dataset.panel;
     if (control.getAttribute("href") === location.hash) render();
   } else if (control.dataset.auth) {
     authMode = control.dataset.auth;
@@ -496,6 +585,17 @@ app.addEventListener("click", async (event) => {
   } else if (control.dataset.command && !saving) {
     saving = control.disabled = true;
     try {
+      if (control.dataset.command === "export-backup" && localLeague) {
+        const url = URL.createObjectURL(new Blob([localLeague.exportBackup()], { type: "application/json" }));
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "fantasyscout-108-copia.json";
+        document.body.append(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+        return;
+      }
       if (control.dataset.command === "logout") {
         await request("/api/logout", "POST", {});
         resetRoute();
