@@ -2,13 +2,13 @@ const app = document.querySelector("#app");
 const notice = document.querySelector("#notice");
 const localLeague = window.fantasyScoutLocal ?? null;
 const dates = new Intl.DateTimeFormat("es-ES", { day: "numeric", month: "long", weekday: "long", timeZone: "Europe/Madrid" });
-const labels = { planned: "Programada", open: "Fichajes abiertos", scoring: "En puntuación", closed: "Cerrada" };
-const routes = { inicio: "Inicio", alineacion: "Alineación", clasificacion: "Clasificación", jornadas: "Jornadas", gestion: "Gestión" };
+const labels = { planned: "Programada", open: "Plantillas abiertas", scoring: "En puntuación", closed: "Cerrada" };
+const routes = { inicio: "Inicio", alineacion: "Mi equipo", clasificacion: "Clasificación", jornadas: "Semanas", gestion: "Gestión" };
 const transition = {
-  planned: { action: "open", label: "Abrir fichajes", hint: "Los scouters podrán guardar su alineación." },
-  open: { action: "lock", label: "Cerrar fichajes", hint: "La alineación queda fijada y se abre el registro de puntos." },
-  scoring: { action: "close", label: "Cerrar jornada", hint: "Comprueba las aportaciones antes de cerrar." },
-  closed: { action: "reopen", label: "Reabrir puntuación", hint: "Podrás corregir aportaciones de la jornada." },
+  planned: { action: "open", label: "Abrir semana", hint: "Los mánagers podrán revisar su equipo para esta semana." },
+  open: { action: "lock", label: "Fijar plantillas", hint: "Guarda la plantilla de cada equipo para esta semana y habilita el registro de puntos." },
+  scoring: { action: "close", label: "Cerrar semana", hint: "Comprueba las aportaciones antes de cerrar." },
+  closed: { action: "reopen", label: "Reabrir puntuación", hint: "Podrás corregir los puntos de los monitores de esta semana." },
 };
 const entities = { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" };
 const h = (value) => String(value ?? "").replace(/[&<>"']/g, (character) => entities[character]);
@@ -23,7 +23,7 @@ let lineupRound;
 let setupRound;
 let reviewRound;
 let reviewSection = 0;
-let reviewPlayer;
+let reviewMonitor;
 let saving = false;
 let noticeTimer;
 let currentRoute = "inicio";
@@ -32,9 +32,12 @@ const isAdmin = () => state.viewer?.role === "admin";
 const canReview = () => isAdmin() || Boolean(state.viewer?.reviewIds.length);
 const me = () => state.viewer?.player;
 const sectionName = (id) => state.sections.find((section) => section.id === id)?.name ?? "Sección";
-const player = (id) => state.players.find((person) => person.id === id);
+const monitorFor = (id) => state.monitors.find((monitor) => monitor.id === id);
 const myStanding = () => state.standings.find((entry) => entry.id === me()?.id);
-const myLineup = (id) => state.lineups.find((entry) => entry.roundId === id);
+const isWeekLocked = (round) => round.status === "scoring" || round.status === "closed";
+const myWeeklyRoster = (round) => isWeekLocked(round)
+  ? state.weeklyRosters.find(({ roundId }) => roundId === round.id)?.monitorIds ?? []
+  : state.roster;
 const hasResults = (row) => row?.results.some(({ scored }) => scored);
 const activeRound = () => state.rounds.find(({ status }) => status === "open") ??
   state.rounds.find(({ status }) => status === "scoring") ??
@@ -69,6 +72,11 @@ async function reload() {
   state = await request("/api/state");
 }
 
+function sectionOptions() {
+  return '<option value="">Elige una sección</option>' + state.sections.map(({ id, name }) =>
+    `<option value="${id}">${h(name)}</option>`).join("");
+}
+
 function brand(link = true) {
   const tag = link ? "a" : "div";
   const href = link ? ' href="#inicio" data-route' : "";
@@ -83,7 +91,7 @@ function authScreen() {
   const organizing = authMode === "admin";
   const title = joining ? "Inscribirme en la liga" : organizing ? "Acceso de organización" : "Entra en tu equipo";
   const intro = joining ? "Usa el código que comparta la organización del grupo."
-    : organizing ? "Gestiona secciones, jornadas y puntuaciones." : "Accede con el alias que elegiste al inscribirte.";
+    : organizing ? "Gestiona monitores, semanas y puntuaciones." : "Accede con el alias que elegiste al inscribirte.";
   const formName = joining ? "register" : organizing ? "admin-login" : "login";
   return `<main class="auth-shell" id="main" tabindex="-1">
     <section class="auth-story">
@@ -91,9 +99,8 @@ function authScreen() {
       <div class="story-copy">
         <p class="eyebrow">Grupo Scout Ciudad del Sol 108</p>
         <h1>FantasyScout</h1>
-        <p>Forma tu equipo con scouters del grupo y suma puntos por lo que hacéis en cada jornada.</p>
+        <p>Forma tu equipo de monitores del grupo y suma puntos por lo que hagan cada semana.</p>
       </div>
-      <div class="story-facts"><span><strong>4</strong> jornadas</span><span><strong>2</strong> fichajes por equipo</span></div>
     </section>
     <section class="auth-panel">
       <div class="auth-box">
@@ -105,10 +112,7 @@ function authScreen() {
         <form class="form" data-form="${formName}">
           ${organizing ? "" : `<div class="field"><label for="alias">Alias</label><input id="alias" name="alias" autocomplete="username" maxlength="32" required></div>`}
           ${joining ? `<div class="field"><label for="team">Nombre de tu equipo</label><input id="team" name="team" maxlength="52" required></div>
-          <div class="field"><label for="join-section">Sección</label><select id="join-section" name="sectionId" required>
-            <option value="">Elige tu sección</option>
-            ${state.sections.map(({ id, name }) => `<option value="${id}">${h(name)}</option>`).join("")}
-          </select></div>` : ""}
+          <div class="field"><label for="join-section">Sección del mánager</label><select id="join-section" name="sectionId" required>${sectionOptions()}</select></div>` : ""}
           <div class="field"><label for="password">${organizing ? "Clave de organización" : "Contraseña"}</label>
             <input id="password" name="password" type="password" autocomplete="${joining ? "new-password" : "current-password"}" minlength="${organizing ? 12 : 8}" maxlength="128" required>
           </div>
@@ -117,7 +121,7 @@ function authScreen() {
           <button class="button primary" type="submit">${joining ? "Crear mi equipo" : "Entrar"}</button>
         </form>
         <p class="auth-link"><button type="button" class="link-button" data-auth="${organizing ? "login" : "admin"}">
-          ${organizing ? "Volver al acceso de scouters" : "Acceso de organización"}</button></p>
+          ${organizing ? "Volver al acceso de mánagers" : "Acceso de organización"}</button></p>
       </div>
     </section>
   </main>`;
@@ -162,18 +166,16 @@ function personLine(title, detail) {
     <span class="person-copy"><strong>${h(title)}</strong><small>${h(detail)}</small></span></div>`;
 }
 
-function personSlot(person, label) {
-  return `<li>${person ? personLine(person.alias, sectionName(person.sectionId)) : '<span class="hint">Fichaje pendiente</span>'}
-    <span class="person-slot">${label}</span></li>`;
-}
-
-function lineupSummary(round) {
-  const lineup = myLineup(round.id);
-  return `<ul class="person-list">
-    ${personSlot(me(), "Mánager")}
-    ${personSlot(player(lineup?.firstPickId), "Fichaje 1")}
-    ${personSlot(player(lineup?.secondPickId), "Fichaje 2")}
-  </ul>`;
+function rosterSummary(round) {
+  const members = myWeeklyRoster(round).map(monitorFor).filter(Boolean);
+  if (!members.length) return '<p class="empty">La plantilla de esta semana está vacía.</p>';
+  const scores = new Map(state.monitorPoints.filter(({ roundId }) => roundId === round.id)
+    .map(({ monitorId, points }) => [monitorId, points]));
+  return `<ul class="person-list">${members.map((monitor) => {
+    const points = scores.get(monitor.id);
+    return `<li>${personLine(monitor.name, sectionName(monitor.sectionId))}
+      <span class="points">${points === undefined && round.status !== "closed" ? "—" : `${points ?? 0} pt`}</span></li>`;
+  }).join("")}</ul>`;
 }
 
 function stat(label, value) {
@@ -181,38 +183,44 @@ function stat(label, value) {
 }
 
 function topFive() {
-  if (!state.standings.length) return '<p class="empty">Los equipos aparecerán cuando se inscriban los scouters.</p>';
+  if (!state.standings.length) return '<p class="empty">Los equipos aparecerán cuando se inscriban sus mánagers.</p>';
   return `<ol class="leader-list">${state.standings.slice(0, 5).map((row) => `<li>
     <span class="rank">${hasResults(row) ? row.rank : "—"}</span>
-    ${personLine(row.team, `${row.alias} · ${sectionName(row.sectionId)}`)}
+    ${personLine(row.team, row.alias)}
     <span class="points">${row.total} pt</span>
   </li>`).join("")}</ol>`;
 }
 
 function home() {
   const round = activeRound();
-  const own = myStanding();
-  const preparing = localLeague && isAdmin() && state.players.length === 0;
-  const openForPlayer = round.status === "open" && !isAdmin();
-  const title = preparing ? "Prepara tu liga" : openForPlayer ? "Elige tus fichajes" : `Jornada ${round.id}`;
-  const description = preparing ? "Añade las secciones del grupo y registra a los scouters para abrir la primera jornada." : round.challenge;
-  const action = preparing ? '<a class="button accent" href="#gestion" data-route data-panel="sections">Añadir secciones</a>' :
-    openForPlayer ? `<a class="button accent" href="#alineacion" data-route data-round="${round.id}">Mi alineación</a>` :
-      `<a class="button accent" href="#${isAdmin() ? "gestion" : "jornadas"}" data-route>${isAdmin() ? "Gestionar jornada" : "Ver jornadas"}</a>`;
+  const standing = myStanding();
+  const weekly = standing?.results.find(({ roundId }) => roundId === round.id);
+  const needsMonitors = isAdmin() && state.monitors.length === 0;
+  const needsTeams = isAdmin() && localLeague && state.players.length === 0;
+  const preparing = needsMonitors || needsTeams;
+  const title = preparing ? "Prepara tu liga" : `Semana ${round.id}`;
+  const description = needsMonitors ? "Registra a los monitores de cada sección para que los mánagers puedan ficharlos."
+    : needsTeams ? "Inscríbete como mánager y añade los equipos de las demás personas."
+      : round.challenge || "Consulta las plantillas y los puntos de esta semana.";
+  const action = needsMonitors ? '<a class="button accent" href="#gestion" data-route data-panel="monitors">Registrar monitores</a>'
+    : needsTeams ? '<a class="button accent" href="#gestion" data-route data-panel="players">Inscribir equipos</a>'
+      : isAdmin() ? '<a class="button accent" href="#gestion" data-route data-panel="rounds">Gestionar semana</a>'
+        : `<a class="button accent" href="#alineacion" data-route data-round="${round.id}">Ver mi equipo</a>`;
   return `<section class="hero"><div class="hero-content">
-    <div class="hero-meta"><span class="eyebrow">${preparing ? "FantasyScout 108" : openForPlayer ? `Jornada ${round.id}` : "Reto común"}</span>${preparing ? "" : roundStatus(round)}</div>
+    <div class="hero-meta">${preparing ? '<span class="eyebrow">FantasyScout 108</span>' : roundStatus(round)}</div>
     <h1>${title}</h1><p>${h(description)}</p>${action}
   </div></section>
   <section class="stat-grid" aria-label="Datos de la liga">
-    ${isAdmin() ? stat("Scouters inscritos", state.players.length) + stat("Secciones", state.sections.length) +
-      stat("Jornadas cerradas", `${state.rounds.filter(({ status }) => status === "closed").length}/${state.rounds.length}`) :
-      stat("Tu puesto", hasResults(own) ? own.rank : "—") + stat("Puntos fantasy", own?.total ?? 0) + stat("Puntos propios", own?.own ?? 0)}
+    ${isAdmin() ? stat("Equipos inscritos", state.players.length) + stat("Monitores registrados", state.monitors.length) +
+      stat("Semanas cerradas", `${state.rounds.filter(({ status }) => status === "closed").length}/${state.rounds.length}`) :
+      stat("Tu puesto", hasResults(standing) ? standing.rank : "—") + stat("Puntos totales", standing?.total ?? 0) +
+      stat(`Puntos semana ${round.id}`, weekly?.scored ? weekly.total : "—")}
   </section>
   <div class="home-grid">
     <section class="card"><div class="card-head"><h2>Clasificación</h2><a href="#clasificacion" data-route class="link-button">Ver tabla</a></div>${topFive()}</section>
-    <section class="card"><div class="card-head"><h2>${isAdmin() ? "Secciones" : "Tu alineación"}</h2>
-      ${isAdmin() ? "" : `<span class="hint">Jornada ${round.id}</span>`}</div>
-      ${isAdmin() ? `<ul class="rule-list">${state.sections.map(({ id, name }) => `<li><strong>${h(name)}</strong><span class="pill">${state.players.filter(({ sectionId }) => sectionId === id).length} inscritos</span></li>`).join("")}</ul>` : lineupSummary(round)}
+    <section class="card"><div class="card-head"><h2>${isAdmin() ? "Monitores por sección" : "Tu plantilla"}</h2>
+      ${isAdmin() ? "" : `<span class="hint">Semana ${round.id}</span>`}</div>
+      ${isAdmin() ? `<ul class="rule-list">${state.sections.map(({ id, name }) => `<li><strong>${h(name)}</strong><span class="pill">${state.monitors.filter(({ sectionId }) => sectionId === id).length}</span></li>`).join("")}</ul>` : rosterSummary(round)}
     </section>
   </div>`;
 }
@@ -222,75 +230,76 @@ function pageHead(title, description, action = "") {
 }
 
 function roundSelect(id, value) {
-  return `<div class="field"><label for="${id}">Jornada</label>
+  return `<div class="field"><label for="${id}">Semana</label>
     <select id="${id}" data-select="${id}">${state.rounds.map((round) =>
-      `<option value="${round.id}"${choose(round.id, value)}>Jornada ${round.id} · ${labels[round.status]}</option>`).join("")}</select>
+      `<option value="${round.id}"${choose(round.id, value)}>Semana ${round.id} · ${labels[round.status]}</option>`).join("")}</select>
   </div>`;
 }
 
-function pickOptions(current) {
-  return '<option value="">Elige un scouter</option>' + state.sections.map((section) => {
-    const candidates = state.players.filter((person) => person.sectionId === section.id && person.id !== me().id);
-    if (!candidates.length) return "";
-    return `<optgroup label="${h(section.name)}">${candidates.map(({ id, alias }) =>
-      `<option value="${id}"${choose(id, current)}>${h(alias)}</option>`).join("")}</optgroup>`;
+function monitorPicker() {
+  const selected = new Set(state.roster);
+  const groups = state.sections.map((section) => {
+    const monitors = state.monitors.filter(({ sectionId }) => sectionId === section.id);
+    if (!monitors.length) return "";
+    return `<fieldset><legend>${h(section.name)}</legend><ul class="checklist">${monitors.map(({ id, name }) =>
+      `<li><label class="check-row"><input type="checkbox" name="monitor" value="${id}"${selected.has(id) ? " checked" : ""}><strong>${h(name)}</strong></label></li>`,
+    ).join("")}</ul></fieldset>`;
   }).join("");
+  return `<form class="form" data-form="roster">
+    <div class="card-head"><h2>Plantilla</h2><output class="pill open" data-roster-count>${selected.size} de ${state.rosterSize}</output></div>
+    <p class="hint">Puedes fichar monitores de cualquier sección. La plantilla se conserva entre semanas.</p>
+    <div class="monitor-picker">${groups}</div>
+    ${errorRegion}<button class="button primary" type="submit">Guardar plantilla</button>
+  </form>`;
 }
 
 function lineupPage() {
   const round = roundFor(lineupRound);
-  const lineup = myLineup(round.id);
   const result = myStanding()?.results.find(({ roundId }) => roundId === round.id);
-  const available = state.players.length >= 3 && state.players.some(({ sectionId }) => sectionId !== me().sectionId);
-  return `${pageHead("Alineación", `Tu equipo ${h(me().team)}`, refreshButton)}
+  return `${pageHead("Mi equipo", h(me().team), refreshButton)}
     <div class="manage-grid">
       <section class="card">
+        ${state.monitors.length ? monitorPicker() : '<h2>Plantilla</h2><p class="empty">La organización añadirá los monitores disponibles.</p>'}
+      </section>
+      <section class="card">
+        <h2>Puntos de la plantilla</h2>
         ${roundSelect("lineup-round", round.id)}
         <div class="round-meta">${roundStatus(round)}${roundDate(round)}</div>
-        ${round.status === "open" ? `<form class="form pick-form" data-form="lineup" data-id="${round.id}">
-          <p class="hint">Tú ocupas el primer puesto. Elige dos scouters y ficha al menos a uno de otra sección.</p>
-          <div class="form-columns">
-            <div class="field"><label for="first-pick">Fichaje 1</label><select id="first-pick" name="firstPickId" required>${pickOptions(lineup?.firstPickId)}</select></div>
-            <div class="field"><label for="second-pick">Fichaje 2</label><select id="second-pick" name="secondPickId" required>${pickOptions(lineup?.secondPickId)}</select></div>
-          </div>
-          ${available ? "" : '<p class="hint">La alineación estará disponible cuando haya dos compañeros inscritos, con al menos uno de otra sección.</p>'}
-          ${errorRegion}<button class="button primary" type="submit"${available ? "" : " disabled"}>Guardar alineación</button>
-        </form>` : '<p class="hint">Podrás editar la alineación durante el plazo de fichajes.</p>'}
-      </section>
-      <section class="card"><h2>Alineación guardada</h2>${lineupSummary(round)}
-        ${result?.scored ? `<p class="hint">${result.own} propios + ${result.picks} de fichajes = <strong>${result.total} pt</strong></p>` : ""}
+        ${rosterSummary(round)}
+        ${result?.scored ? `<p><strong>Total de la semana ${result.total} pt</strong></p>` :
+          '<p class="hint">La organización fija la plantilla al iniciar la semana.</p>'}
       </section>
     </div>`;
 }
 
 function standingsPage() {
-  return `${pageHead("Clasificación", "En empate, cuentan los puntos propios. Los equipos que sigan igualados comparten puesto.", refreshButton)}
+  return `${pageHead("Clasificación", "Cada semana suma los puntos de los monitores de la plantilla. En empate, los equipos comparten puesto.", refreshButton)}
     <section class="card table-card">${state.standings.length ? `<div class="table-wrap" tabindex="0" role="region" aria-label="Tabla de clasificación">
-      <table><thead><tr><th scope="col">Puesto</th><th scope="col">Equipo</th><th scope="col">Sección</th>
-        ${state.rounds.map(({ id }) => `<th scope="col" class="num" aria-label="Jornada ${id}">J${id}</th>`).join("")}
-        <th scope="col" class="num">Propios</th><th scope="col" class="num">Total</th>
+      <table><thead><tr><th scope="col">Puesto</th><th scope="col">Equipo</th>
+        ${state.rounds.map(({ id }) => `<th scope="col" class="num" aria-label="Semana ${id}">S${id}</th>`).join("")}
+        <th scope="col" class="num">Total</th>
       </tr></thead><tbody>${state.standings.map((row) => `<tr${row.id === me()?.id ? ' class="active-row"' : ""}>
         <td class="rank">${hasResults(row) ? row.rank : "—"}</td>
-        <th scope="row">${personLine(row.team, row.alias)}</th><td>${h(sectionName(row.sectionId))}</td>
+        <th scope="row">${personLine(row.team, row.alias)}</th>
         ${row.results.map((result) => `<td class="num">${result.scored ? result.total : "—"}</td>`).join("")}
-        <td class="num">${row.own}</td><td class="num points">${row.total}</td>
+        <td class="num points">${row.total}</td>
       </tr>`).join("")}</tbody></table>
-    </div>` : '<p class="empty">Los equipos aparecerán cuando se inscriban los scouters.</p>'}</section>`;
+    </div>` : '<p class="empty">Los equipos aparecerán cuando se inscriban sus mánagers.</p>'}</section>`;
 }
 
 function roundsPage() {
-  return `${pageHead("Jornadas", "Consulta el reto de cada jornada y el estado de los fichajes.")}
+  return `${pageHead("Semanas", "Consulta el calendario y la fase de cada semana.")}
     <div class="round-grid">${state.rounds.map((round) => `<article class="card round-card">
-      <div class="card-head"><h2>Jornada ${round.id}</h2>${roundStatus(round)}</div>
-      ${roundDate(round)}<p>${h(round.challenge)}</p>
-      ${isAdmin() ? "" : `<a href="#alineacion" data-route data-round="${round.id}" class="button secondary">${round.status === "open" ? "Elegir fichajes" : "Ver alineación"}</a>`}
+      <div class="card-head"><h2>Semana ${round.id}</h2>${roundStatus(round)}</div>
+      ${roundDate(round)}${round.challenge ? `<p>${h(round.challenge)}</p>` : ""}
+      ${isAdmin() ? "" : `<a href="#alineacion" data-route data-round="${round.id}" class="button secondary">Ver mi equipo</a>`}
     </article>`).join("")}</div>
     <section class="card">
       <div class="card-head"><h2>Cómo se puntúa</h2></div>
       <div class="rules-grid"><ul class="rule-list">${state.contributions.map(({ label, description, points }) =>
         `<li><strong>${label}</strong><small>${description}</small><span class="pill open">+${points}</span></li>`).join("")}</ul>
-      <div><p>Cada aportación cuenta en una sola categoría. Puedes sumar cada categoría una vez por jornada.</p>
-        <p>El equipo suma tus puntos propios y los puntos propios de tus fichajes. La preparación entre semana también cuenta.</p></div></div>
+      <div><p>Cada monitor puede sumar una vez por categoría y semana. Cada aportación cuenta en una sola categoría.</p>
+        <p>Todos los equipos que tengan fichado a un monitor reciben los puntos que consiga esa semana.</p></div></div>
     </section>`;
 }
 
@@ -302,19 +311,29 @@ function manageRounds() {
       <h2>Calendario</h2>
       ${roundSelect("setup-round", round.id)}
       <form class="form" data-form="round" data-id="${round.id}">
-        <div class="field"><label for="round-date">Fecha de la jornada</label><input id="round-date" name="date" type="date" value="${h(round.date)}"></div>
-        <div class="field"><label for="round-challenge">Reto común</label><textarea id="round-challenge" name="challenge" maxlength="280" required>${h(round.challenge)}</textarea></div>
+        <div class="field"><label for="round-date">Fecha de la semana</label><input id="round-date" name="date" type="date" value="${h(round.date)}"></div>
+        <div class="field"><label for="round-challenge">Reto común</label><textarea id="round-challenge" name="challenge" maxlength="280" placeholder="Opcional">${h(round.challenge)}</textarea></div>
         ${errorRegion}<button class="button secondary" type="submit">Guardar calendario</button>
       </form>
     </section>
     <section class="card">
-      <div class="card-head"><h2>Fase de la jornada</h2>${roundStatus(round)}</div>
+      <div class="card-head"><h2>Fase de la semana</h2>${roundStatus(round)}</div>
       <p class="muted">${next.hint}</p>
       <form class="form" data-form="phase" data-id="${round.id}" data-action="${next.action}">
         ${errorRegion}<button class="button primary" type="submit">${next.label}</button>
       </form>
     </section>
-  </div>`;
+  </div>
+  <section class="card">
+    <div class="card-head"><h2>Añadir semana</h2></div>
+    <form class="form" data-form="add-round">
+      <div class="form-columns">
+        <div class="field"><label for="next-date">Fecha de la nueva semana</label><input id="next-date" name="date" type="date"></div>
+        <div class="field"><label for="next-challenge">Reto de la nueva semana</label><input id="next-challenge" name="challenge" maxlength="280" placeholder="Opcional"></div>
+      </div>
+      ${errorRegion}<button class="button secondary" type="submit">Añadir semana</button>
+    </form>
+  </section>`;
 }
 
 function manageSections() {
@@ -327,8 +346,9 @@ function manageSections() {
   </section>
   <div class="section-grid">${state.sections.map((section) => {
     const members = state.players.filter(({ sectionId }) => sectionId === section.id);
+    const count = state.monitors.filter(({ sectionId }) => sectionId === section.id).length;
     return `<section class="card">
-      <div class="card-head"><h2>${h(section.name)}</h2><span class="pill">${members.length} inscritos</span></div>
+      <div class="card-head"><h2>${h(section.name)}</h2><span class="pill">${count} monitores</span></div>
       <form class="form" data-form="edit-section" data-id="${section.id}">
         <div class="field"><label for="section-${section.id}">Nombre</label><input id="section-${section.id}" name="name" value="${h(section.name)}" maxlength="60" required></div>
         <div class="field"><label for="reviewer-${section.id}">Responsable de puntuación</label><select id="reviewer-${section.id}" name="reviewerId">
@@ -341,34 +361,57 @@ function manageSections() {
   }).join("")}</div>`;
 }
 
-function managePlayers() {
+function manageMonitors() {
   return `<div class="manage-grid">
     <section class="card">
-      <h2>Inscribir scouter</h2>
-      <form class="form" data-form="add-player">
-        <div class="field"><label for="local-alias">Alias</label><input id="local-alias" name="alias" maxlength="32" required></div>
-        <div class="field"><label for="local-team">Nombre del equipo</label><input id="local-team" name="team" maxlength="52" required></div>
-        <div class="field"><label for="local-section">Sección</label><select id="local-section" name="sectionId" required>
-          <option value="">Elige una sección</option>
-          ${state.sections.map(({ id, name }) => `<option value="${id}">${h(name)}</option>`).join("")}
-        </select></div>
-        ${errorRegion}<button class="button primary" type="submit">Inscribir scouter</button>
+      <h2>Registrar monitor</h2>
+      <form class="form" data-form="add-monitor">
+        <div class="field"><label for="monitor-name">Nombre del monitor</label><input id="monitor-name" name="name" maxlength="60" required></div>
+        <div class="field"><label for="monitor-section">Sección del monitor</label><select id="monitor-section" name="sectionId" required>${sectionOptions()}</select></div>
+        ${errorRegion}<button class="button primary" type="submit">Registrar monitor</button>
       </form>
     </section>
     <section class="card">
-      <h2>Scouters inscritos</h2>
-      ${state.players.length ? `<ul class="person-list">${state.players.map(({ alias, team, sectionId }) =>
-        `<li>${personLine(alias, team)}<span class="person-slot">${h(sectionName(sectionId))}</span></li>`).join("")}</ul>` :
-        '<p class="empty">Añade el primer scouter de la liga.</p>'}
+      <h2>Monitores disponibles</h2>
+      ${state.monitors.length ? `<ul class="person-list">${state.monitors.map(({ name, sectionId }) =>
+        `<li>${personLine(name, sectionName(sectionId))}</li>`).join("")}</ul>` : '<p class="empty">Registra al primer monitor de la liga.</p>'}
     </section>
   </div>`;
+}
+
+function managePlayers() {
+  const teams = `<section class="card">
+    <div class="card-head"><h2>Equipos inscritos</h2></div>
+    ${state.players.length ? `<ul class="person-list">${state.players.map(({ alias, team, sectionId }) =>
+      `<li>${personLine(team, alias)}<span class="person-slot">${h(sectionName(sectionId))}</span></li>`).join("")}</ul>` :
+      '<p class="empty">Los mánagers inscritos aparecerán aquí.</p>'}
+  </section>`;
+  return `<section class="card">
+    <div class="card-head"><h2>Límite de plantilla</h2></div>
+    <form class="form" data-form="settings">
+      <div class="field"><label for="roster-size">Monitores por equipo</label>
+        <input id="roster-size" name="rosterSize" type="number" min="1" max="${state.rosterLimit}" value="${state.rosterSize}" required>
+      </div>
+      ${errorRegion}<button class="button secondary" type="submit">Guardar límite</button>
+    </form>
+  </section>
+  ${localLeague ? `<div class="manage-grid">
+    <section class="card">
+      <h2>Inscribir mánager</h2>
+      <form class="form" data-form="add-player">
+        <div class="field"><label for="local-alias">Alias del mánager</label><input id="local-alias" name="alias" maxlength="32" required></div>
+        <div class="field"><label for="local-team">Nombre del equipo</label><input id="local-team" name="team" maxlength="52" required></div>
+        <div class="field"><label for="local-section">Sección del mánager</label><select id="local-section" name="sectionId" required>${sectionOptions()}</select></div>
+        ${errorRegion}<button class="button primary" type="submit">Crear equipo</button>
+      </form>
+    </section>${teams}</div>` : teams}`;
 }
 
 function manageBackup() {
   return `<div class="manage-grid">
     <section class="card">
       <h2>Guardar una copia</h2>
-      <p class="muted">Descarga las secciones, los equipos, las alineaciones y los puntos en un archivo JSON.</p>
+      <p class="muted">Descarga los monitores, los equipos, las plantillas y los puntos en un archivo JSON.</p>
       <button class="button primary" type="button" data-command="export-backup">Descargar copia</button>
     </section>
     <section class="card">
@@ -387,10 +430,10 @@ function manageBackup() {
 function manageScores() {
   const sections = state.sections.filter(({ id }) => state.viewer.reviewIds.includes(id));
   const round = roundFor(reviewRound ?? state.rounds.find(({ status }) => status === "scoring")?.id);
-  const members = state.players.filter(({ sectionId }) =>
+  const members = state.monitors.filter(({ sectionId }) =>
     state.viewer.reviewIds.includes(sectionId) && (!reviewSection || reviewSection === sectionId));
-  const target = members.find(({ id }) => id === reviewPlayer) ?? members[0];
-  const scores = new Map(state.reviewScores.filter(({ roundId }) => roundId === round.id).map((score) => [score.playerId, score]));
+  const target = members.find(({ id }) => id === reviewMonitor) ?? members[0];
+  const scores = new Map(state.reviewScores.filter(({ roundId }) => roundId === round.id).map((score) => [score.monitorId, score]));
   const saved = target ? scores.get(target.id) : null;
   const enabled = round.status === "scoring";
   const number = members.filter(({ id }) => scores.has(id)).length;
@@ -399,38 +442,41 @@ function manageScores() {
 
   return `<div class="manage-grid">
     <section class="card">
-      <div class="card-head"><h2>Jornada y sección</h2>${roundStatus(round)}</div>
+      <div class="card-head"><h2>Semana y sección</h2>${roundStatus(round)}</div>
       ${roundSelect("review-round", round.id)}
       <div class="field"><label for="review-section">Sección</label><select id="review-section" data-select="review-section">
         <option value="0">Todas mis secciones</option>
         ${sections.map(({ id, name }) => `<option value="${id}"${choose(id, reviewSection)}>${h(name)}</option>`).join("")}
       </select></div>
-      <div class="field"><label for="review-player">Scouter</label><select id="review-player" data-select="review-player"${target ? "" : " disabled"}>
-        ${members.length ? members.map(({ id, alias }) => `<option value="${id}"${choose(id, target.id)}>${h(alias)}${scores.has(id) ? " · registrado" : ""}</option>`).join("") : '<option>Sin scouters inscritos</option>'}
+      <div class="field"><label for="review-monitor">Monitor</label><select id="review-monitor" data-select="review-monitor"${target ? "" : " disabled"}>
+        ${members.length ? members.map(({ id, name, sectionId }) => `<option value="${id}"${choose(id, target.id)}>${h(name)} · ${h(sectionName(sectionId))}${scores.has(id) ? " · registrado" : ""}</option>`).join("") : '<option>Sin monitores registrados</option>'}
       </select></div>
       <p class="hint">${number} de ${members.length} puntuaciones registradas.</p>
     </section>
     <section class="card">
-      <div class="card-head"><h2>Aportaciones ${target ? `de ${h(target.alias)}` : ""}</h2>${target ? `<span class="pill open" data-points>${total} pt</span>` : ""}</div>
-      ${target ? `<form class="form" data-form="score" data-id="${round.id}" data-player="${target.id}">
-        ${enabled ? "" : '<p class="hint">La organización puede abrir la fase de puntuación desde Jornadas.</p>'}
+      <div class="card-head"><h2>Aportaciones ${target ? `de ${h(target.name)}` : ""}</h2>${target ? `<span class="pill open" data-points>${total} pt</span>` : ""}</div>
+      ${target ? `<form class="form" data-form="score" data-id="${round.id}" data-monitor="${target.id}">
+        ${enabled ? "" : '<p class="hint">La organización puede iniciar la puntuación desde Semanas.</p>'}
         <ul class="checklist">${state.contributions.map(({ id, label, description, points }, index) => `<li><label class="check-row">
           <input type="checkbox" name="category" value="${id}" data-value="${points}"${saved?.mask & (1 << index) ? " checked" : ""}${enabled ? "" : " disabled"}>
           <span><strong>${label}</strong><small>${description}</small></span><span class="points">+${points}</span>
         </label></li>`).join("")}</ul>
         <div class="field"><label for="score-note">Nota de aportaciones</label><textarea id="score-note" name="note" maxlength="280" placeholder="Opcional"${enabled ? "" : " disabled"}>${h(saved?.note)}</textarea></div>
         ${errorRegion}<button class="button primary" type="submit"${enabled ? "" : " disabled"}>Guardar puntuación</button>
-      </form>` : '<p class="empty">Selecciona un scouter inscrito para registrar sus puntos.</p>'}
+      </form>` : '<p class="empty">Selecciona un monitor para registrar sus puntos.</p>'}
     </section>
   </div>`;
 }
 
 function managementPage() {
-  const tabs = [["rounds", "Jornadas"], ["scores", "Puntuaciones"], ["sections", "Secciones"]];
-  if (localLeague) tabs.push(["players", "Scouters"], ["backup", "Copia"]);
+  const tabs = [["rounds", "Semanas"], ["scores", "Puntuaciones"], ["monitors", "Monitores"], ["players", "Equipos"], ["sections", "Secciones"]];
+  if (localLeague) tabs.push(["backup", "Copia"]);
   const panel = isAdmin() ? manageTab : "scores";
-  const panels = { rounds: manageRounds, scores: manageScores, sections: manageSections, players: managePlayers, backup: manageBackup };
-  return `${pageHead("Gestión", isAdmin() ? "Configura la liga y valida las aportaciones de cada jornada." : "Registra las aportaciones de tu sección.")}
+  const panels = {
+    rounds: manageRounds, scores: manageScores, sections: manageSections, monitors: manageMonitors,
+    players: managePlayers, backup: manageBackup,
+  };
+  return `${pageHead("Gestión", isAdmin() ? "Organiza las semanas y registra el rendimiento de los monitores." : "Registra las aportaciones de tu sección.")}
     ${isAdmin() ? `<div class="segmented" aria-label="Panel de gestión">${tabs.map(([key, label]) =>
       `<button type="button" data-manage="${key}" aria-pressed="${panel === key}">${label}</button>`).join("")}</div>` : ""}
     ${panels[panel]()}`;
@@ -465,7 +511,7 @@ function resetRoute() {
   currentRoute = "inicio";
   authMode = "login";
   manageTab = "rounds";
-  lineupRound = setupRound = reviewRound = reviewPlayer = undefined;
+  lineupRound = setupRound = reviewRound = reviewMonitor = undefined;
   reviewSection = 0;
   history.replaceState(null, "", "#inicio");
 }
@@ -474,15 +520,17 @@ const actions = {
   login: ({ alias, password }) => ["/api/login", "POST", { alias, password }],
   "admin-login": ({ password }) => ["/api/login", "POST", { role: "admin", password }],
   register: (values) => ["/api/register", "POST", { ...values, sectionId: Number(values.sectionId) }, "Equipo inscrito."],
-  lineup: ({ firstPickId, secondPickId }, form) => [`/api/rounds/${form.dataset.id}/lineup`, "PUT",
-    { firstPickId: Number(firstPickId), secondPickId: Number(secondPickId) }, "Alineación guardada."],
+  roster: (_, form, data) => ["/api/roster", "PUT", { monitorIds: data.getAll("monitor").map(Number) }, "Plantilla guardada."],
   round: (values, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", values, "Calendario guardado."],
+  "add-round": (values) => ["/api/admin/rounds", "POST", values, "Semana añadida."],
   phase: (_, form) => [`/api/admin/rounds/${form.dataset.id}`, "PATCH", { action: form.dataset.action }, "Fase actualizada."],
-  "add-player": ({ alias, team, sectionId }) => ["/api/admin/players", "POST", { alias, team, sectionId: Number(sectionId) }, "Scouter inscrito."],
+  "add-player": ({ alias, team, sectionId }) => ["/api/admin/players", "POST", { alias, team, sectionId: Number(sectionId) }, "Equipo inscrito."],
+  "add-monitor": ({ name, sectionId }) => ["/api/admin/monitors", "POST", { name, sectionId: Number(sectionId) }, "Monitor registrado."],
+  settings: ({ rosterSize }) => ["/api/admin/settings", "PATCH", { rosterSize: Number(rosterSize) }, "Límite actualizado."],
   "add-section": (values) => ["/api/admin/sections", "POST", values, "Sección añadida."],
   "edit-section": ({ name, reviewerId }, form) => [`/api/admin/sections/${form.dataset.id}`, "PATCH",
     { name, reviewerId: reviewerId ? Number(reviewerId) : null }, "Sección guardada."],
-  score: ({ note }, form, data) => [`/api/rounds/${form.dataset.id}/scores/${form.dataset.player}`, "PUT",
+  score: ({ note }, form, data) => [`/api/rounds/${form.dataset.id}/scores/${form.dataset.monitor}`, "PUT",
     { categories: data.getAll("category"), note }, "Puntuación guardada."],
 };
 
@@ -548,6 +596,11 @@ app.addEventListener("change", async (event) => {
     }
     return;
   }
+  if (control.name === "monitor") {
+    const count = control.form.querySelectorAll('input[name="monitor"]:checked').length;
+    control.form.querySelector("[data-roster-count]").textContent = `${count} de ${state.rosterSize}`;
+    return;
+  }
   if (control.name === "category") {
     const points = Array.from(control.form.querySelectorAll('input[name="category"]:checked'))
       .reduce((sum, checked) => sum + Number(checked.dataset.value), 0);
@@ -559,8 +612,8 @@ app.addEventListener("change", async (event) => {
     case "lineup-round": lineupRound = value; break;
     case "setup-round": setupRound = value; break;
     case "review-round": reviewRound = value; break;
-    case "review-section": reviewSection = value; reviewPlayer = undefined; break;
-    case "review-player": reviewPlayer = value; break;
+    case "review-section": reviewSection = value; reviewMonitor = undefined; break;
+    case "review-monitor": reviewMonitor = value; break;
     default: return;
   }
   render();

@@ -12,7 +12,7 @@ function replaceAsset(source, tag, contents) {
 }
 
 const rules = league.replace(/^export /gm, "");
-const adapter = offline.replace(/^import [^\n]+\n/, "").replace(/^export /gm, "");
+const adapter = offline.replace(/^import \{[\s\S]*?\} from "\.\/league\.mjs";\r?\n/, "").replace(/^export /gm, "");
 const script = `(() => {
   "use strict";
 ${rules}

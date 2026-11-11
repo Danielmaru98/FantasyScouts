@@ -209,10 +209,9 @@ export function createApp({ databasePath, adminPassword, inviteCode, secureCooki
       return replyJson(res, 200, { ok: true });
     }
 
-    const lineup = /^\/api\/rounds\/(\d+)\/lineup$/.exec(path);
-    if (method === "PUT" && lineup) {
+    if (method === "PUT" && path === "/api/roster") {
       requireActor(actor, "player");
-      store.saveLineup(positiveId(Number(lineup[1])), actor.playerId, positiveId(body.firstPickId), positiveId(body.secondPickId));
+      store.saveRoster(actor.playerId, body.monitorIds);
       return replyJson(res, 200, { ok: true });
     }
 
@@ -232,6 +231,24 @@ export function createApp({ databasePath, adminPassword, inviteCode, secureCooki
       return replyJson(res, 201, { ok: true });
     }
 
+    if (method === "POST" && path === "/api/admin/monitors") {
+      requireActor(actor, "admin");
+      store.addMonitor(field(body.name, "el nombre del monitor", 60), positiveId(body.sectionId));
+      return replyJson(res, 201, { ok: true });
+    }
+
+    if (method === "PATCH" && path === "/api/admin/settings") {
+      requireActor(actor, "admin");
+      store.setRosterSize(body.rosterSize);
+      return replyJson(res, 200, { ok: true });
+    }
+
+    if (method === "POST" && path === "/api/admin/rounds") {
+      requireActor(actor, "admin");
+      store.addRound(field(body.challenge ?? "", "el reto de la semana", 280, true), dateField(body.date ?? null));
+      return replyJson(res, 201, { ok: true });
+    }
+
     const section = /^\/api\/admin\/sections\/(\d+)$/.exec(path);
     if (method === "PATCH" && section) {
       requireActor(actor, "admin");
@@ -246,7 +263,7 @@ export function createApp({ databasePath, adminPassword, inviteCode, secureCooki
     if (method === "PATCH" && round) {
       requireActor(actor, "admin");
       const changes = {};
-      if ("challenge" in body) changes.challenge = field(body.challenge, "el reto de la jornada", 280);
+      if ("challenge" in body) changes.challenge = field(body.challenge, "el reto de la semana", 280, true);
       if ("date" in body) changes.date = dateField(body.date);
       if ("action" in body) changes.action = field(body.action, "la acción", 15);
       store.editRound(positiveId(Number(round[1])), changes);

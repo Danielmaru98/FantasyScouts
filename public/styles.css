@@ -62,8 +62,7 @@ p + p { margin-top: .55rem; }
 .story-copy .eyebrow { color: var(--lime); margin-bottom: 1rem; }
 .story-copy h1 { font-size: clamp(3.1rem, 7vw, 6.3rem); line-height: .98; letter-spacing: -.08em; overflow-wrap: anywhere; }
 .story-copy p:last-child { max-width: 29rem; margin-top: 1.4rem; color: #d4e3d7; font-size: clamp(1rem, 1.8vw, 1.25rem); }
-.story-facts { display: flex; gap: 1.75rem; color: #dce8db; font-size: .89rem; }
-.story-facts strong { color: var(--lime); display: block; font-size: 1.6rem; }
+.auth-story .story-copy { margin-block: auto; }
 .auth-panel { padding: clamp(1.25rem, 5vw, 5rem); display: grid; place-items: center; background: #fafbf7; }
 .auth-box { width: min(100%, 27rem); }
 .auth-box h2 { font-size: clamp(1.9rem, 3.3vw, 2.65rem); margin-bottom: .45rem; }
@@ -157,9 +156,10 @@ select:disabled, textarea:disabled, input:disabled { background: #f0f4ef; opacit
 .person-list { display: grid; gap: .45rem; }
 .person-list li { display: flex; justify-content: space-between; align-items: center; gap: .6rem; background: #f5f8f3; border-radius: .78rem; padding: .54rem .64rem; }
 .person-slot { color: var(--muted); white-space: nowrap; font-size: .77rem; }
-.pick-form { margin-top: 1rem; }
-.pick-summary { display: grid; gap: .8rem; }
-.pick-summary .button { margin-top: .2rem; }
+.monitor-picker { max-height: 22rem; overflow: auto; padding: .2rem .25rem; display: grid; gap: .75rem; }
+.monitor-picker fieldset { border: 0; margin: 0; padding: 0; min-width: 0; }
+.monitor-picker legend { margin-bottom: .35rem; color: var(--muted); font-size: .85rem; font-weight: 750; }
+.monitor-picker .check-row { grid-template-columns: auto 1fr; cursor: pointer; }
 .table-card { padding: 0; overflow: hidden; }
 .table-wrap { overflow-x: auto; }
 table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; text-align: left; }
@@ -201,7 +201,6 @@ tbody th { font-size: .95rem; font-weight: 700; }
   .auth-story { min-height: 0; padding: 1.3rem 1.1rem 1.5rem; gap: 1.55rem; }
   .story-copy .eyebrow { margin-bottom: .35rem; }
   .story-copy p:last-child { margin-top: .5rem; }
-  .story-facts { display: none; }
   .auth-panel { padding: 1.4rem 1rem 2rem; }
   .workspace { padding-top: 1rem; gap: .85rem; }
   .stat-grid { gap: .4rem; }

@@ -1,4 +1,7 @@
-import { calculateStandings, contributionMask, CONTRIBUTIONS, lineupProblem, nextRoundStatus, STARTER_CHALLENGES } from "./league.mjs";
+import {
+  contributionMask, CONTRIBUTIONS, convertLegacyGame, DEFAULT_ROSTER_SIZE, leagueView, MAX_ROSTER_SIZE,
+  nextRoundStatus, rosterProblem, STARTER_CHALLENGES, validRosterSize,
+} from "./league.mjs";
 
 const LOCAL_KEY = "fantasyscout-108-local-v1";
 const LOCAL_FORMAT = "fantasyscout-108";
@@ -8,7 +11,9 @@ const UNREADABLE = "La liga guardada no se pudo leer. Puedes recuperar los datos
 const localKey = (value) => value.normalize("NFKC").toLocaleLowerCase("es");
 const validLocalId = (value) => Number.isSafeInteger(value) && value > 0;
 const hasUnique = (rows, key) => new Set(rows.map(key)).size === rows.length;
-const localEntryKey = ({ roundId, playerId }) => `${roundId}/${playerId}`;
+const weeklyRosterKey = ({ roundId, playerId }) => `${roundId}/${playerId}`;
+const weeklyScoreKey = ({ roundId, monitorId }) => `${roundId}/${monitorId}`;
+const isFixed = (status) => status === "scoring" || status === "closed";
 
 function localError(message, status = 400) {
   return Object.assign(new Error(message), { status });
@@ -37,11 +42,14 @@ function localDate(value) {
 function newLocalLeague() {
   return {
     format: LOCAL_FORMAT,
-    version: 1,
+    version: 2,
     sections: [{ id: 1, name: "Tropa Jungla", reviewerId: null }],
     players: [],
     rounds: STARTER_CHALLENGES.map((challenge, index) => ({ id: index + 1, challenge, date: null, status: "planned" })),
-    lineups: [],
+    monitors: [],
+    rosterSize: DEFAULT_ROSTER_SIZE,
+    rosters: [],
+    roundRosters: [],
     scores: [],
   };
 }
@@ -54,11 +62,13 @@ function normalizeCopy(serialized) {
   } catch {
     throw invalid();
   }
-  if (data?.format !== LOCAL_FORMAT || data.version !== 1 ||
-      !["sections", "players", "rounds", "lineups", "scores"].every((name) =>
+  if (data?.format !== LOCAL_FORMAT || ![1, 2].includes(data.version)) throw invalid();
+  const gameLists = data.version === 1 ? ["lineups"] : ["monitors", "rosters", "roundRosters"];
+  if (!["sections", "players", "rounds", "scores", ...gameLists].every((name) =>
         Array.isArray(data[name]) && data[name].every((row) => row && typeof row === "object"))) {
     throw invalid();
   }
+  if (data.version === 1) data = { ...data, ...convertLegacyGame(data), version: 2 };
 
   const sections = data.sections.map(({ id, name, reviewerId }) => ({
     id, name: localText(name, "el nombre de la sección", 60), reviewerId,
@@ -67,40 +77,47 @@ function normalizeCopy(serialized) {
     id, alias: localText(alias, "el alias", 32), team: localText(team, "el nombre del equipo", 52), sectionId,
   }));
   const rounds = data.rounds.map(({ id, challenge, date, status }) => ({
-    id, challenge: localText(challenge, "el reto", 280), date: localDate(date), status,
+    id, challenge: localText(challenge, "el reto", 280, true), date: localDate(date), status,
   })).sort((a, b) => a.id - b.id);
-  const lineups = data.lineups.map(({ roundId, playerId, firstPickId, secondPickId }) =>
-    ({ roundId, playerId, firstPickId, secondPickId }));
-  const scores = data.scores.map(({ roundId, playerId, mask, note }) =>
-    ({ roundId, playerId, mask, note: localText(note, "la nota", 280, true) }));
+  const monitors = data.monitors.map(({ id, name, sectionId }) => ({
+    id, name: localText(name, "el nombre del monitor", 60), sectionId,
+  }));
+  const rosterSize = data.rosterSize;
+  const rosters = data.rosters.map(({ playerId, monitorIds }) => ({ playerId, monitorIds }));
+  const roundRosters = data.roundRosters.map(({ roundId, playerId, monitorIds }) => ({ roundId, playerId, monitorIds }));
+  const scores = data.scores.map(({ roundId, monitorId, mask, note }) =>
+    ({ roundId, monitorId, mask, note: localText(note, "la nota", 280, true) }));
   const sectionById = new Map(sections.map((section) => [section.id, section]));
   const playerById = new Map(players.map((player) => [player.id, player]));
   const roundById = new Map(rounds.map((round) => [round.id, round]));
+  const monitorById = new Map(monitors.map((monitor) => [monitor.id, monitor]));
 
   if (!sections.length || !hasUnique(sections, ({ name }) => localKey(name)) ||
       sectionById.size !== sections.length || !sections.every(({ id, reviewerId }) =>
         validLocalId(id) && (reviewerId === null || playerById.get(reviewerId)?.sectionId === id)) ||
       playerById.size !== players.length || !hasUnique(players, ({ alias }) => localKey(alias)) ||
       !players.every(({ id, sectionId }) => validLocalId(id) && sectionById.has(sectionId)) ||
-      rounds.length !== STARTER_CHALLENGES.length ||
+      monitorById.size !== monitors.length ||
+      !hasUnique(monitors, ({ name, sectionId }) => `${sectionId}/${localKey(name)}`) ||
+      !monitors.every(({ id, sectionId }) => validLocalId(id) && sectionById.has(sectionId)) ||
+      !validRosterSize(rosterSize) || !rounds.length ||
       !rounds.every(({ id, status }, index) => id === index + 1 && LOCAL_STATUSES.has(status))) {
     throw invalid();
   }
-  if (!hasUnique(lineups, localEntryKey) || !lineups.every(({ roundId, playerId, firstPickId, secondPickId }) => {
-    const manager = playerById.get(playerId);
-    const round = roundById.get(roundId);
-    return manager && round && round.status !== "planned" &&
-      !lineupProblem(manager, playerById.get(firstPickId), playerById.get(secondPickId));
-  })) throw invalid();
-  if (!hasUnique(scores, localEntryKey) || !scores.every(({ roundId, playerId, mask }) =>
-    playerById.has(playerId) && ["scoring", "closed"].includes(roundById.get(roundId)?.status) &&
+  if (!hasUnique(rosters, ({ playerId }) => playerId) || !rosters.every(({ playerId, monitorIds }) =>
+    playerById.has(playerId) && !rosterProblem(monitorIds, monitors, rosterSize))) throw invalid();
+  if (!hasUnique(roundRosters, weeklyRosterKey) || !roundRosters.every(({ roundId, playerId, monitorIds }) =>
+    isFixed(roundById.get(roundId)?.status) && playerById.has(playerId) &&
+    !rosterProblem(monitorIds, monitors, MAX_ROSTER_SIZE))) throw invalid();
+  if (!hasUnique(scores, weeklyScoreKey) || !scores.every(({ roundId, monitorId, mask }) =>
+    monitorById.has(monitorId) && isFixed(roundById.get(roundId)?.status) &&
     Number.isInteger(mask) && mask >= 0 && mask < 2 ** CONTRIBUTIONS.length)) throw invalid();
 
-  return { format: LOCAL_FORMAT, version: 1, sections, players, rounds, lineups, scores };
+  return { format: LOCAL_FORMAT, version: 2, sections, players, monitors, rounds, rosterSize, rosters, roundRosters, scores };
 }
 
-function saveLocalEntry(rows, entry) {
-  const index = rows.findIndex(({ roundId, playerId }) => roundId === entry.roundId && playerId === entry.playerId);
+function saveLocalEntry(rows, entry, key) {
+  const index = rows.findIndex((row) => key(row) === key(entry));
   if (index === -1) rows.push(entry);
   else rows[index] = entry;
 }
@@ -158,20 +175,9 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
 
   function stateFor() {
     const snapshot = read();
-    const { sections, players, rounds, scores, lineups } = snapshot;
     const actor = actorFor(snapshot);
-    const reviewIds = sections.filter((section) => !actor || section.reviewerId === actor.id).map(({ id }) => id);
-    const sectionIds = new Map(players.map(({ id, sectionId }) => [id, sectionId]));
-    const reviewed = new Set(reviewIds);
     return {
-      viewer: actor ? { role: "player", player: actor, reviewIds } : { role: "admin", reviewIds },
-      sections,
-      players,
-      rounds,
-      contributions: CONTRIBUTIONS,
-      standings: calculateStandings(players, rounds, scores, lineups),
-      lineups: lineups.filter(({ playerId }) => playerId === actor?.id),
-      reviewScores: scores.filter(({ playerId }) => reviewed.has(sectionIds.get(playerId))),
+      ...leagueView(snapshot, { isAdmin: !actor, playerId: actor?.id ?? null }),
       storageWarning: warning,
     };
   }
@@ -182,7 +188,7 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
     const lookupSection = (id) => draft.sections.find((section) => section.id === id);
     const lookupRound = (id) => {
       const round = draft.rounds.find((entry) => entry.id === id);
-      if (!round) throw localError("La jornada no existe.", 404);
+      if (!round) throw localError("La semana no existe.", 404);
       return round;
     };
 
@@ -208,50 +214,76 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
         }
         const reviewerId = body.reviewerId === undefined ? section?.reviewerId ?? null : body.reviewerId;
         if (reviewerId !== null && (!section || lookupPlayer(reviewerId)?.sectionId !== section.id)) {
-          throw localError("Elige a un scouter inscrito en esta sección.");
+          throw localError("Elige a un mánager de esta sección.");
         }
         if (section) Object.assign(section, { name, reviewerId });
         else draft.sections.push({ id: addLocalId(draft.sections), name, reviewerId });
         return;
       }
+      if (route[1] === "monitors" && method === "POST") {
+        const name = localText(body.name, "el nombre del monitor", 60);
+        const sectionId = body.sectionId;
+        if (!lookupSection(sectionId)) throw localError("Elige una sección de la liga.");
+        if (draft.monitors.some((monitor) => monitor.sectionId === sectionId && localKey(monitor.name) === localKey(name))) {
+          throw localError("Ese monitor ya está registrado en esta sección.", 409);
+        }
+        draft.monitors.push({ id: addLocalId(draft.monitors), name, sectionId });
+        return;
+      }
+      if (route[1] === "settings" && method === "PATCH") {
+        const size = body.rosterSize;
+        if (!validRosterSize(size)) throw localError(`Elige un límite entre 1 y ${MAX_ROSTER_SIZE} monitores.`);
+        if (draft.rosters.some(({ monitorIds }) => monitorIds.length > size)) {
+          throw localError("Reduce las plantillas que superen el nuevo límite antes de guardarlo.", 409);
+        }
+        draft.rosterSize = size;
+        return;
+      }
+      if (route[1] === "rounds" && method === "POST") {
+        const challenge = localText(body.challenge ?? "", "el reto", 280, true);
+        const date = localDate(body.date ?? null);
+        draft.rounds.push({ id: addLocalId(draft.rounds), challenge, date, status: "planned" });
+        return;
+      }
       if (route[1] === "rounds" && method === "PATCH") {
         const round = lookupRound(id);
-        if ("challenge" in body) round.challenge = localText(body.challenge, "el reto", 280);
+        if ("challenge" in body) round.challenge = localText(body.challenge, "el reto", 280, true);
         if ("date" in body) round.date = localDate(body.date);
         if ("action" in body) {
           const status = nextRoundStatus(round.status, body.action);
-          if (!status) throw localError("La jornada cambió de estado. Actualiza la página.", 409);
+          if (!status) throw localError("La semana cambió de estado. Actualiza la página.", 409);
+          if (round.status === "open" && status === "scoring") {
+            for (const { playerId, monitorIds } of draft.rosters) {
+              draft.roundRosters.push({ roundId: round.id, playerId, monitorIds: [...monitorIds] });
+            }
+          }
           round.status = status;
         }
         return;
       }
     }
 
-    if (route[0] === "rounds" && method === "PUT") {
+    if (route[0] === "roster" && method === "PUT") {
+      if (!actor) throw localError("Selecciona la vista de un mánager para guardar su plantilla.", 403);
+      const problem = rosterProblem(body.monitorIds, draft.monitors, draft.rosterSize);
+      if (problem) throw localError(problem);
+      saveLocalEntry(draft.rosters, { playerId: actor.id, monitorIds: [...body.monitorIds] }, ({ playerId }) => playerId);
+      return;
+    }
+
+    if (route[0] === "rounds" && route[2] === "scores" && method === "PUT") {
       const round = lookupRound(Number(route[1]));
-      if (route[2] === "lineup") {
-        if (!actor) throw localError("Selecciona la vista del scouter para guardar su alineación.", 403);
-        if (round.status !== "open") throw localError("Los fichajes de esta jornada están cerrados.", 409);
-        const problem = lineupProblem(actor, lookupPlayer(body.firstPickId), lookupPlayer(body.secondPickId));
-        if (problem) throw localError(problem);
-        saveLocalEntry(draft.lineups, {
-          roundId: round.id, playerId: actor.id, firstPickId: body.firstPickId, secondPickId: body.secondPickId,
-        });
-        return;
+      const target = draft.monitors.find(({ id }) => id === Number(route[3]));
+      if (!target) throw localError("El monitor no existe.", 404);
+      if (actor && lookupSection(target.sectionId)?.reviewerId !== actor.id) {
+        throw localError("Solo puedes puntuar en la sección que tienes asignada.", 403);
       }
-      if (route[2] === "scores") {
-        const target = lookupPlayer(Number(route[3]));
-        if (!target) throw localError("El scouter no existe.", 404);
-        if (actor && lookupSection(target.sectionId)?.reviewerId !== actor.id) {
-          throw localError("Solo puedes puntuar en la sección que tienes asignada.", 403);
-        }
-        if (round.status !== "scoring") throw localError("La jornada debe estar en fase de puntuación.", 409);
-        const mask = contributionMask(body.categories);
-        if (mask === null) throw localError("Revisa las aportaciones seleccionadas.");
-        const note = localText(body.note ?? "", "la nota de aportaciones", 280, true);
-        saveLocalEntry(draft.scores, { roundId: round.id, playerId: target.id, mask, note });
-        return;
-      }
+      if (round.status !== "scoring") throw localError("La semana debe estar en fase de puntuación.", 409);
+      const mask = contributionMask(body.categories);
+      if (mask === null) throw localError("Revisa las aportaciones seleccionadas.");
+      const note = localText(body.note ?? "", "la nota de aportaciones", 280, true);
+      saveLocalEntry(draft.scores, { roundId: round.id, monitorId: target.id, mask, note }, weeklyScoreKey);
+      return;
     }
     throw localError("Acción no disponible en la liga local.", 404);
   }
@@ -281,7 +313,7 @@ export function createOfflineLeague({ storage = null, locks = null } = {}) {
       return { ok: true };
     },
     viewAs(id) {
-      if (id !== null && !read().players.some((player) => player.id === id)) throw localError("Elige un scouter inscrito.");
+      if (id !== null && !read().players.some((player) => player.id === id)) throw localError("Elige un mánager inscrito.");
       activeId = id;
     },
     exportBackup() {
